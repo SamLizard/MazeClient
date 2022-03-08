@@ -13,6 +13,8 @@ public class spawning : MonoBehaviourPun
     private readonly int square_size = 10;
     private int size;
 
+    public GameObject Trophy;
+
     private readonly Tuple<int, int>[] directions = new Tuple<int, int>[4] {
         new Tuple<int, int>(0, -1),
         new Tuple<int, int>(-1, 0),
@@ -22,7 +24,9 @@ public class spawning : MonoBehaviourPun
 
     void Start() // make them spawn at their place (in game with 2 players it is two opposite corners)
     {
-        GameObject player = PhotonNetwork.Instantiate(playerPrefab.name, Vector3.zero, Quaternion.identity);
+        Debug.Log("Starting position of player: \nX: " + PlayerPrefs.GetInt("PositionX") + "\nY: " + PlayerPrefs.GetInt("PositionY"));
+        GameObject player = PhotonNetwork.Instantiate(playerPrefab.name, new Vector3(PlayerPrefs.GetInt("PositionX"), 0, PlayerPrefs.GetInt("PositionY")), Quaternion.identity); // the y is the height (so it is z instead)
+        player.transform.rotation = player.transform.rotation * Quaternion.Euler(0, PlayerPrefs.GetInt("RotationY"), 0);
         GameObject photonData = PhotonNetwork.Instantiate("roomData", Vector3.zero, Quaternion.identity);
 
         if (PhotonNetwork.IsMasterClient)
@@ -45,6 +49,7 @@ public class spawning : MonoBehaviourPun
 
             photonData.GetComponent<Data>().setTable(tableSize, tableString, PhotonNetwork.IsMasterClient);
             // this.photonView.RPC("InstantiateMazeInActualClient", RpcTarget.Others, tableString, tableSize);
+            InstansiateTrophies(2 * PlayerPrefs.GetInt("MaxPlayersPerRoom") + 1, tableData);
             InstantiateMaze(tableData);
             // Debug.Log("Master finished the setTable of data at time: " + Time.realtimeSinceStartup + "\nActual Time: " + Time.timeAsDouble);
             // instantiate the maze
@@ -58,6 +63,30 @@ public class spawning : MonoBehaviourPun
         // if manager, put the data object in photon. Set the size, the number of players (array), send him the table (maze)
         //int[,] table = new int[3, 3] { { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 } };
         //Debug.Log(StringList(table));
+    }
+
+    public void InstansiateTrophies(int numOfThrophies, int[,] table)
+    {
+        int tablePointSize = (table.GetLength(0) - 1) / 2;
+        if (numOfThrophies < (Math.Pow(tablePointSize, 2) / 3))
+        {
+            int initial_place = (((-size / 2)) * square_size);
+            for (int i = 0; i < numOfThrophies; i++)
+            {
+                int row = UnityEngine.Random.Range(0, tablePointSize);
+                int column = UnityEngine.Random.Range(0, tablePointSize);
+                if (table[row, column] == 1)
+                {
+                    GameObject trophy = PhotonNetwork.Instantiate(Trophy.name, new Vector3(initial_place + (row * 2 * square_size), 0.4f, initial_place + (column * 2 * square_size)), Quaternion.identity);
+                    trophy.transform.localScale = new Vector3(5, 5, 5);
+                    table[row, column] = 2;
+                }
+                else
+                {
+                    i--;
+                }
+            }
+        }
     }
 
     //IEnumerator InstantiateMazeInClient()
