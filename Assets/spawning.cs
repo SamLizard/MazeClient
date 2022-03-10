@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using Photon.Pun;
 using System;
+using Photon;
+using Photon.Realtime;
 
 public class spawning : MonoBehaviourPun
 {
@@ -22,15 +24,29 @@ public class spawning : MonoBehaviourPun
         new Tuple<int, int>(1, 0)
     };
 
+    private int[] playersPoints;
+    public int playerIndex = -1;
+
     void Start() // make them spawn at their place (in game with 2 players it is two opposite corners)
     {
+	    playerIndex = PlayerPrefs.GetInt("PlayerIndex");
+        // Color color;
+        // ColorUtility.TryParseHtmlString("#" + PlayerPrefs.GetString("Color"), out color);
         Debug.Log("Starting position of player: \nX: " + PlayerPrefs.GetInt("PositionX") + "\nY: " + PlayerPrefs.GetInt("PositionY"));
-        GameObject player = PhotonNetwork.Instantiate(playerPrefab.name, new Vector3(PlayerPrefs.GetInt("PositionX"), 0, PlayerPrefs.GetInt("PositionY")), Quaternion.identity); // the y is the height (so it is z instead)
+	    string playerPrefabName = string.Concat(playerPrefab.name, PlayerPrefs.GetString("ColorName"));
+        Debug.Log("Player prefab name: " + playerPrefabName + "\nPlayerPrefs: " + PlayerPrefs.GetString("ColorName"));
+        GameObject player = PhotonNetwork.Instantiate(playerPrefabName, new Vector3(PlayerPrefs.GetInt("PositionX"), 0, PlayerPrefs.GetInt("PositionY")), Quaternion.identity); // the y is the height (so it is z instead)
         player.transform.rotation = player.transform.rotation * Quaternion.Euler(0, PlayerPrefs.GetInt("RotationY"), 0);
+        // player.GetComponent<MeshRenderer>().sharedMaterial.SetColor("_Color", color);
         GameObject photonData = PhotonNetwork.Instantiate("roomData", Vector3.zero, Quaternion.identity);
 
         if (PhotonNetwork.IsMasterClient)
         {
+            playersPoints = new int[(PlayerPrefs.GetInt("Size") - 1) / 12];
+            for (int i = 0; i < playersPoints.Length; i++)
+            {
+                playersPoints[i] = 0;
+            }
             // GameObject photonData = PhotonNetwork.Instantiate("roomData", Vector3.zero, Quaternion.identity);
             int tableSize = PlayerPrefs.GetInt("Size");
             size = tableSize;
@@ -63,6 +79,26 @@ public class spawning : MonoBehaviourPun
         // if manager, put the data object in photon. Set the size, the number of players (array), send him the table (maze)
         //int[,] table = new int[3, 3] { { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 } };
         //Debug.Log(StringList(table));
+    }
+
+    [PunRPC]
+    public void AddPointTo(int indexPlayer)
+    {
+        if (PhotonNetwork.IsMasterClient){
+            if (indexPlayer >= 0)
+            {
+	            playersPoints[indexPlayer]++;
+            }        
+            Debug.Log("Player number " + indexPlayer + " has " + playersPoints[indexPlayer] + " points.");
+        }
+        // Debug.Log(player.NickName);
+        // Debug.Log("RPC AddPointTo in spawning. \nPhotonView owner id:" + photonView.Owner.identity);
+        // int playerNumber = photonView.owner.GetPlayerNumber();
+        
+	    Debug.Log("Client see: Player number " + indexPlayer);
+	    // call rpc target all clients. Thay add to the player the point
+        
+	    // Debug.Log("Player " + playerNumber + " has " + playersPoints[playerNumber] + " points");
     }
 
     public void InstansiateTrophies(int numOfThrophies, int[,] table)

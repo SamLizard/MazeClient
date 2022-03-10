@@ -730,7 +730,6 @@ MonoBehaviour:
   FacingWall: 0
   SideingWall: 0
   PushDownYVelocity: -15
-  playerIndex: 0
   RotationSpeed: 5
 --- !u!114 &4965601083446877039
 MonoBehaviour:

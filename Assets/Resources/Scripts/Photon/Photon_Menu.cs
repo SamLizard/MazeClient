@@ -34,7 +34,10 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         new Tuple<int, int>(1, -1)
     };
 
-    private int[] rotation = new int[4] {45, 135, 225, 315};
+    private int[] rotation = new int[4] {45, 225, 135, 315};
+
+    // private Color[] colorTable = new Color[4] { new Color(0, 1, 0, 1), new Color(1, 0.92f, 0.016f, 1), new Color(1, 0, 0, 1), new Color(1, 0, 1, 1) }; // add 6 other colors
+    private string[] colorName = new string[4] {"G", "Y", "R", "P"};
 
     private readonly int[][] RandomDirections = new int[24][] {
         new int[4] {0, 1, 2, 3 }, new int[4] {0, 1, 3, 2 }, new int[4] {0, 2, 1, 3 }, new int[4] {0, 2, 3, 1 }, new int[4] {0, 3, 2, 1 }, new int[4] {0, 3, 1, 2 },
@@ -348,6 +351,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             PlayerPrefs.SetInt("PositionX", playersPosition[playersPositionIndex, 0]);
             PlayerPrefs.SetInt("PositionY", playersPosition[playersPositionIndex, 1]);
             PlayerPrefs.SetInt("RotationY", rotation[playersPositionIndex]);
+            // Debug.Log("Color" + ColorUtility.ToHtmlStringRGBA(colorTable[playersPositionIndex]));
+            // PlayerPrefs.SetString("Color", ColorUtility.ToHtmlStringRGBA(colorTable[playersPositionIndex]));
+            PlayerPrefs.SetString("ColorName", colorName[playersPositionIndex]);
             playersPositionIndex = 1;
         }
     }
@@ -417,7 +423,11 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 StartCoroutine(StartTimer(timeToStart));
             }
         }
-        this.photonView.RPC("ChangePlayerPosition", newPlayer, playersPosition[playersPositionIndex, 0], playersPosition[playersPositionIndex, 1], rotation[playersPositionIndex % 4]);
+	// Color colorToSend = new Color(0, 0, 0, 0);
+	// if (playersPositionIndex < 4) { 	
+	//     colorToSend = colorTable[playersPositionIndex];
+	// }
+        this.photonView.RPC("ChangePlayerPosition", newPlayer, playersPosition[playersPositionIndex, 0], playersPosition[playersPositionIndex, 1], rotation[playersPositionIndex % 4], playersPositionIndex); //, colorToSend
         playersPositionIndex++;
     }
 
@@ -481,10 +491,19 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    public void ChangePlayerPosition(int placeX, int placeY, int rotation)
+    public void ChangePlayerPosition(int placeX, int placeY, int rotation, int index) // , Color color
     {
         PlayerPrefs.SetInt("PositionX", placeX);
         PlayerPrefs.SetInt("PositionY", placeY);
         PlayerPrefs.SetInt("RotationY", rotation);
+        // Debug.Log("Color" + ColorUtility.ToHtmlStringRGBA(color));
+        // PlayerPrefs.SetString("Color", ColorUtility.ToHtmlStringRGBA(color));
+	    PlayerPrefs.SetInt("PlayerIndex", index);
+	    if (index <= 4){
+	        PlayerPrefs.SetString("ColorName", colorName[index]);
+	    }
+	    else {
+	        PlayerPrefs.SetString("ColorName", "W");
+	    }
     }
 }
