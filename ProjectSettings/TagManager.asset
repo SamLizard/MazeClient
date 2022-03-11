@@ -7,6 +7,8 @@ TagManager:
   - Map
   - Data
   - WaitingPanel
+  - Spawning
+  - LeaderboardPanel
   layers:
   - Default
   - TransparentFX

@@ -351,9 +351,11 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             PlayerPrefs.SetInt("PositionX", playersPosition[playersPositionIndex, 0]);
             PlayerPrefs.SetInt("PositionY", playersPosition[playersPositionIndex, 1]);
             PlayerPrefs.SetInt("RotationY", rotation[playersPositionIndex]);
-            // Debug.Log("Color" + ColorUtility.ToHtmlStringRGBA(colorTable[playersPositionIndex]));
-            // PlayerPrefs.SetString("Color", ColorUtility.ToHtmlStringRGBA(colorTable[playersPositionIndex]));
             PlayerPrefs.SetString("ColorName", colorName[playersPositionIndex]);
+
+            // add in roomoptions customproperties the maxplayersperroom using setCustomproperties
+            PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
+            PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 }});
             playersPositionIndex = 1;
         }
     }
@@ -399,35 +401,14 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 // pun rpc everyone else
                 this.photonView.RPC("StartClientTimer", RpcTarget.Others, timeToStart.ToString("dd/MM/yyyy HH:mm:ss"));
 
-                // start a timer of 5 secondes, and then load the game
-                // if master, send the time you want the game to start. the client need a punRPC methode that just wait until the time tha is written. it also change the panel timer, and start it
-                //int restantSeconds = timeLeft(timeToStart);
-                //waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
-                // Debug.Log("WaitingStatusText is: " + waitingStatusText.text);
-                //while (true)
-                //{
-                //    if (timeLeft(timeToStart) < restantSeconds)
-                //    {
-                //        restantSeconds = timeLeft(timeToStart);
-                //        waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
-                //        // Debug.Log("WaitingStatusText is: " + waitingStatusText.text);
-                //    }
-                //    if (DateTime.Now > timeToStart)
-                //    {
-                //        Debug.Log("Master - Actual time: " + DateTime.Now.ToString() + "\nTimeToStart: " + timeToStart.ToString());
-                //        waitingStatusText.text = "Game Start in 0 seconds";
-                //        break;
-                //    }
-                //}
-                //PhotonNetwork.LoadLevel("Game");
                 StartCoroutine(StartTimer(timeToStart));
             }
         }
-	// Color colorToSend = new Color(0, 0, 0, 0);
-	// if (playersPositionIndex < 4) { 	
-	//     colorToSend = colorTable[playersPositionIndex];
-	// }
-        this.photonView.RPC("ChangePlayerPosition", newPlayer, playersPosition[playersPositionIndex, 0], playersPosition[playersPositionIndex, 1], rotation[playersPositionIndex % 4], playersPositionIndex); //, colorToSend
+        // add custom properties to the player
+
+        newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 } });
+        Debug.Log("Photon_Menu - Giving index:" + playersPositionIndex + " to " + newPlayer.NickName);
+        this.photonView.RPC("ChangePlayerPosition", newPlayer, playersPosition[playersPositionIndex, 0], playersPosition[playersPositionIndex, 1], rotation[playersPositionIndex % 4], playersPositionIndex);
         playersPositionIndex++;
     }
 
@@ -459,45 +440,15 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         System.Globalization.CultureInfo culture = new System.Globalization.CultureInfo("fr-FR");
         DateTime timeToStart = Convert.ToDateTime(timeString, culture);
         StartCoroutine(StartTimer(timeToStart));
-
-        //if (!PhotonNetwork.IsMasterClient)
-        //{
-        //    Debug.Log("[PunRPC] Actual time: " + DateTime.Now.ToString() + "\nTimeToStart: " + timeString);
-        //    PlayerPrefs.SetString("TimerTime", timeString);
-        //    GameObject timer = Instantiate(timerPrefab, Vector3.zero, Quaternion.identity);
-        //}
-
-        //Debug.Log("TimeToStart: " + timeToStart.ToString());
-        //int restantSeconds = timeLeft(timeToStart);
-        //waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
-        //while (true)
-        //{
-        //    if (timeLeft(timeToStart) < restantSeconds)
-        //    {
-        //        restantSeconds = timeLeft(timeToStart);
-        //        waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
-        //        // Debug.Log("WaitingStatusText is: " + waitingStatusText.text);
-        //    }
-        //    if (DateTime.Now > timeToStart)
-        //    {
-        //        Debug.Log("Actual time: " + DateTime.Now.ToString() + "\nTimeToStart: " + timeToStart.ToString());
-        //        break;
-        //    }
-        //}
-        //Debug.Log("For is Done");
-        //// hide the panels that are active, set active the timer panel, while localtime < timeToStart, do nothing.
-        //// after the while:
-        //PhotonNetwork.LoadLevel("Game");
     }
 
     [PunRPC]
-    public void ChangePlayerPosition(int placeX, int placeY, int rotation, int index) // , Color color
+    public void ChangePlayerPosition(int placeX, int placeY, int rotation, int index)
     {
         PlayerPrefs.SetInt("PositionX", placeX);
         PlayerPrefs.SetInt("PositionY", placeY);
         PlayerPrefs.SetInt("RotationY", rotation);
-        // Debug.Log("Color" + ColorUtility.ToHtmlStringRGBA(color));
-        // PlayerPrefs.SetString("Color", ColorUtility.ToHtmlStringRGBA(color));
+        Debug.Log("Photon_Menu - Index given is: " + index);
 	    PlayerPrefs.SetInt("PlayerIndex", index);
 	    if (index <= 4){
 	        PlayerPrefs.SetString("ColorName", colorName[index]);

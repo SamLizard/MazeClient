@@ -634,7 +634,7 @@ GameObject:
   - component: {fileID: 461567579142444880}
   - component: {fileID: 6996641998590260566}
   m_Layer: 0
-  m_Name: PR_Fheelek
+  m_Name: PR_FheelekW
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -730,6 +730,7 @@ MonoBehaviour:
   FacingWall: 0
   SideingWall: 0
   PushDownYVelocity: -15
+  playerIndex: 4
   RotationSpeed: 5
 --- !u!114 &4965601083446877039
 MonoBehaviour:

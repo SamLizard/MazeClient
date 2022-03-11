@@ -11,6 +11,7 @@ public class spawning : MonoBehaviourPun
     [SerializeField] private GameObject data = null;
     [SerializeField] private GameObject playerPrefab = null;
     [SerializeField] public GameObject[] squares;
+    [SerializeField] public GameObject LeaderboardPanel;
 
     private readonly int square_size = 10;
     private int size;
@@ -26,9 +27,12 @@ public class spawning : MonoBehaviourPun
 
     private int[] playersPoints;
     public int playerIndex = -1;
+    public string[] playerNames;
 
-    void Start() // make them spawn at their place (in game with 2 players it is two opposite corners)
+    void Start()
     {
+        // instantiate the leaderboard panel
+        LeaderboardPanel = Instantiate(LeaderboardPanel, Vector3.zero, Quaternion.identity);
 	    playerIndex = PlayerPrefs.GetInt("PlayerIndex");
         // Color color;
         // ColorUtility.TryParseHtmlString("#" + PlayerPrefs.GetString("Color"), out color);
@@ -42,52 +46,58 @@ public class spawning : MonoBehaviourPun
 
         if (PhotonNetwork.IsMasterClient)
         {
+            instantiatePlayerNameList();
             playersPoints = new int[(PlayerPrefs.GetInt("Size") - 1) / 12];
             for (int i = 0; i < playersPoints.Length; i++)
             {
                 playersPoints[i] = 0;
             }
-            // GameObject photonData = PhotonNetwork.Instantiate("roomData", Vector3.zero, Quaternion.identity);
             int tableSize = PlayerPrefs.GetInt("Size");
             size = tableSize;
             string tableString = PlayerPrefs.GetString("Table");
             int[,] tableData = stringToTable(tableString);
 
-            //int[,] tableData = new int[tableSize, tableSize];
-            //string tableString = PlayerPrefs.GetString("Table");
-            //for (int i = 0; i < tableSize; i++)
-            //{
-            //    for (int j = 0; j < tableSize; j++)
-            //    {
-            //        tableData[i, j] = int.Parse(tableString[i * tableSize + j].ToString());
-            //    }
-            //}
-
             photonData.GetComponent<Data>().setTable(tableSize, tableString, PhotonNetwork.IsMasterClient);
-            // this.photonView.RPC("InstantiateMazeInActualClient", RpcTarget.Others, tableString, tableSize);
             InstansiateTrophies(2 * PlayerPrefs.GetInt("MaxPlayersPerRoom") + 1, tableData);
             InstantiateMaze(tableData);
-            // Debug.Log("Master finished the setTable of data at time: " + Time.realtimeSinceStartup + "\nActual Time: " + Time.timeAsDouble);
-            // instantiate the maze
         }
-        //else
-        //{
-        //    // StartCoroutine(InstantiateMazeInClient());
-        //    // Debug.Log("Client want the data to be given to him at time: " + Time.realtimeSinceStartup + "\nActual Time: " + Time.timeAsDouble);
-        //    // start a coroutine that wait (or: that wait until its not "") 1 second and then take the maze from data
-        //}
-        // if manager, put the data object in photon. Set the size, the number of players (array), send him the table (maze)
-        //int[,] table = new int[3, 3] { { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 } };
-        //Debug.Log(StringList(table));
     }
 
-    [PunRPC]
+    // instantiate leaderboard. use room.maxPlayers. use void OnPlayerPropertiesUpdate	(Player targetPlayer, Hashtable changedProps) to update. add a photonview?
+
+    public void instantiatePlayerNameList(){
+        // index : 0        1       2       3       4
+        // name  : sam      sam11   samuel  Sa      Sam01                               // to display
+        // Color : G        Y       R       P       W       // use CustomProperties     // use index to set the color in the leaderboard
+        // Points: 2        1       3       4       1       // use CustomProperties     // to display // use void OnPlayerPropertiesUpdate	(Player targetPlayer, Hashtable changedProps)	
+        playerNames = new string[PhotonNetwork.PlayerList.Length];
+        string str = "";
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (playerNames[(int)player.CustomProperties["Index"]] != "")
+            {
+                Debug.Log(player.NickName + " has the same index that " + playerNames[(int)player.CustomProperties["Index"]] + " has.");
+            }
+            else
+            {
+                playerNames[(int)player.CustomProperties["Index"]] = player.NickName;
+                // str += player.ActorNumber.ToString() + ". " + player.NickName + ". Index: " + player.CustomProperties["Index"].ToString() + "\n";
+            }
+        }
+        Debug.Log("Player names: \n" + str);
+    }
+
+    // [PunRPC]
     public void AddPointTo(int indexPlayer)
     {
         if (PhotonNetwork.IsMasterClient){
             if (indexPlayer >= 0)
             {
 	            playersPoints[indexPlayer]++;
+                // addin
+                ExitGames.Client.Photon.Hashtable playerProperties = PhotonNetwork.PlayerList[indexPlayer].CustomProperties;
+                playerProperties["Point"] = (int)playerProperties["Point"] + 1;
+                PhotonNetwork.PlayerList[indexPlayer].SetCustomProperties(playerProperties);
             }        
             Debug.Log("Player number " + indexPlayer + " has " + playersPoints[indexPlayer] + " points.");
         }
@@ -125,64 +135,14 @@ public class spawning : MonoBehaviourPun
         }
     }
 
-    //IEnumerator InstantiateMazeInClient()
-    //{
-    //    int i = 0;
-    //    int j = 0;
-    //    yield return new WaitForSeconds(5);
-    //    while (i < 500)
-    //    {
-    //        GameObject photonData = GameObject.FindGameObjectWithTag("Data");
-    //        if (photonData != null)
-    //        {
-    //            Debug.Log("PhotonData isn't null.");
-    //            if (j != 0)
-    //            {
-    //                break;
-    //            }
-    //            if (photonData.GetComponent<Data>().getTable() != null)
-    //            {
-    //                size = photonData.GetComponent<Data>().getTable().GetLength(0);
-    //                InstantiateMaze(photonData.GetComponent<Data>().getTable());
-    //                break;
-    //            }
-    //            else
-    //            {
-    //                j++;
-    //            }
-    //        }
-    //        else{
-    //            i++;
-    //        }
-    //        Debug.Log("i : " + i + ".\nj : " + j);
-    //    }
-    //    // if (this.photonView.RPC("getTable", RpcTarget.MasterClient) != null)
-    //}
+    public void UpdateLeaderboard(Player player){
+        this.photonView.RPC("UpdateLeaderboardRPC", RpcTarget.Others, player as object);
+    }
 
-    //private string StringList(int[,] table)
-    //{
-    //    string str = "[";
-    //    for (int row = 0; row < table.GetLength(0); row++)
-    //    {
-    //        for (int column = 0; column < table.GetLength(0); column++)
-    //        {
-    //            if (column != table.GetLength(0) - 1)
-    //            {
-    //                str += table[row, column] + ", ";
-    //            }
-    //            else
-    //            {
-    //                str += table[row, column];
-    //            }
-    //        }
-    //        if (row != table.GetLength(0) - 1)
-    //        {
-    //            str += "\n";
-    //        }
-    //    }
-    //    str += "]";
-    //    return str;
-    //}
+    [PunRPC]
+    public void UpdateLeaderboardRPC(Player player){
+        LeaderboardPanel.GetComponent<Leaderboard>().UpdateOtherPoints(player);
+    }
 
     private bool IsOutOfBounds(int row, int column)
     {
@@ -191,22 +151,6 @@ public class spawning : MonoBehaviourPun
             || column >= size
             || column < 0;
     }
-
-    //[PunRPC]
-    //public void InstantiateMazeInActualClient(string tableString, int tableSize)
-    //{
-    //    Debug.Log("Methode : InstantiateMazeInActualClient started");
-    //    if (!PhotonNetwork.IsMasterClient)
-    //    {
-    //        size = tableSize;
-    //        int[,] table = stringToTable(tableString);
-    //        InstantiateMaze(table);
-    //    }
-    //    else
-    //    {
-    //        Debug.Log("Master has already built his maze.");
-    //    }
-    //}
 
     private int[,] stringToTable(string tableString)
     {

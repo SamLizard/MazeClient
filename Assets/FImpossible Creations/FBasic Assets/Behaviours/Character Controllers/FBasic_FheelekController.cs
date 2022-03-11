@@ -7,7 +7,8 @@ namespace FIMSpace.Basics
     /// </summary>
     public class FBasic_FheelekController : FBasic_RigidbodyMovement
     {
-        public int playerIndex;
+        [SerializeField] public int playerIndex;
+
         [Tooltip("Just lerping speed for rotating object")]
         public float RotationSpeed = 5f;
 
@@ -23,9 +24,8 @@ namespace FIMSpace.Basics
         private Transform fBody;
 
 
-        protected override void Start()
+        protected override async void Start()
         {
-            playerIndex = PlayerPrefs.GetInt("PlayerIndex");
             base.Start();
 
             CharacterRigidbody = GetComponent<Rigidbody>();
