@@ -6,9 +6,6 @@ using System;
 
 public class Data : MonoBehaviourPun
 {
-    private int numberOfTrophies;
-    private int[,] dataTable;
-
     [SerializeField] public GameObject[] squares;
 
     private readonly int square_size = 10;
@@ -21,70 +18,11 @@ public class Data : MonoBehaviourPun
         new Tuple<int, int>(1, 0)
     };
 
-    void Start()
-    {
-        numberOfTrophies = 1;
-        dataTable = null;
-        // add a dictionnary that have the starting position of each corner startingPosition = 1 :  ((size - (1 * size % 2)) / 2) * -square_size. 2 : ...
-    }
-
-    public void setTrophies(int number, bool isMaster)
-    {
-        if (isMaster)
-        {
-            numberOfTrophies = number;
-        }
-    } 
-
-    public int getTrophies() // send all the places ? // put the trophies in the photon?
-    {
-        return numberOfTrophies;
-    }
-
     public void setTable(int tableSize, string tableString, bool isMaster)
     {
-        //if (isMaster)
-        //{
-        //    dataTable = new int[table.GetLength(0), table.GetLength(0)];
-        //    dataTable = table;
-        //}
         Debug.Log("IsMaster: " + isMaster + ". TableString" + tableString);
-        this.photonView.RPC("InstantiateMazeInActualClient", RpcTarget.Others, tableString, tableSize);
+        this.photonView.RPC("InstantiateMazeInActualClient", RpcTarget.All, tableString, tableSize);
     }
-
-    public int[,] getTable()
-    {
-        return dataTable;
-    }
-
-    private string StringList(int[,] table)
-    {
-        string str = "[";
-        for (int row = 0; row < table.GetLength(0); row++)
-        {
-            for (int column = 0; column < table.GetLength(0); column++)
-            {
-                if (column != table.GetLength(0) - 1)
-                {
-                    str += table[row, column] + "   ,   ";
-                }
-                else
-                {
-                    str += table[row, column];
-                }
-            }
-            if (row != table.GetLength(0) - 1)
-            {
-                str += "\n";
-            }
-        }
-        str += "]";
-        return str;
-    }
-
-
-
-
 
     private bool IsOutOfBounds(int row, int column)
     {
@@ -98,16 +36,9 @@ public class Data : MonoBehaviourPun
     public void InstantiateMazeInActualClient(string tableString, int tableSize)
     {
         Debug.Log("Methode : InstantiateMazeInActualClient started");
-        if (!PhotonNetwork.IsMasterClient)
-        {
-            size = tableSize;
-            int[,] table = stringToTable(tableString);
-            InstantiateMaze(table);
-        }
-        else
-        {
-            Debug.Log("Master has already built his maze.");
-        }
+        size = tableSize;
+        int[,] table = stringToTable(tableString);
+        InstantiateMaze(table);
     }
 
     private int[,] stringToTable(string tableString)

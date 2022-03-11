@@ -35,8 +35,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     };
 
     private int[] rotation = new int[4] {45, 225, 135, 315};
-
-    // private Color[] colorTable = new Color[4] { new Color(0, 1, 0, 1), new Color(1, 0.92f, 0.016f, 1), new Color(1, 0, 0, 1), new Color(1, 0, 1, 1) }; // add 6 other colors
     private string[] colorName = new string[4] {"G", "Y", "R", "P"};
 
     private readonly int[][] RandomDirections = new int[24][] {
@@ -339,8 +337,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         }
         if (PhotonNetwork.IsMasterClient)
         {
-            //System.Globalization.CultureInfo culture = new System.Globalization.CultureInfo("fr-FR");
-            //Debug.Log(Convert.ToDateTime(StringDateTime(DateTime.Now), culture)); 
             Debug.Log("I am the master");
             PlayerPrefs.SetInt("MaxPlayersPerRoom", MaxPlayersPerRoom);
             Debug.Log("Starting GenerateMaze Coroutine.");
@@ -405,7 +401,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             }
         }
         // add custom properties to the player
-
         newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 } });
         Debug.Log("Photon_Menu - Giving index:" + playersPositionIndex + " to " + newPlayer.NickName);
         this.photonView.RPC("ChangePlayerPosition", newPlayer, playersPosition[playersPositionIndex, 0], playersPosition[playersPositionIndex, 1], rotation[playersPositionIndex % 4], playersPositionIndex);
