@@ -5,6 +5,9 @@ TextureImporter:
   - first:
       213: -2712965080552235136
     second: Crown
+  - first:
+      213: -6202620245911416931
+    second: informations
   externalObjects: {}
   serializedVersion: 11
   mipmaps:
@@ -102,7 +105,7 @@ TextureImporter:
         width: 320
         height: 219
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -110,6 +113,27 @@ TextureImporter:
       bones: []
       spriteID: 08f15a512ac995ad0800000000000000
       internalID: -2712965080552235136
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: informations
+      rect:
+        serializedVersion: 2
+        x: 2661
+        y: 1027
+        width: 610
+        height: 648
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d9fcdcdcfbddbe9a0800000000000000
+      internalID: -6202620245911416931
       vertices: []
       indices: 
       edges: []

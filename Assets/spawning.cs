@@ -43,7 +43,7 @@ public class spawning : MonoBehaviourPun
             }
             int tableSize = PlayerPrefs.GetInt("Size");
             size = tableSize;
-            string tableString = PlayerPrefs.GetString("Table");
+            string tableString = PlayerPrefs.GetString("Table" + PlayerPrefs.GetInt("MaxPlayersPerRoom").ToString());
             int[,] tableData = stringToTable(tableString);
 
             photonData.GetComponent<Data>().setTable(tableSize, tableString, PhotonNetwork.IsMasterClient);
