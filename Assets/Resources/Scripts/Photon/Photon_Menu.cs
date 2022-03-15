@@ -15,15 +15,16 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     [SerializeField] GameObject textBoxPrefab;
     [SerializeField] GameObject TextBoxAndField;
     [SerializeField] private GameObject masterPanel = null;
+    [SerializeField] private GameObject Canvas = null;
     public GameObject PlayersJoinedTextBox = null;
     private bool isConnecting = false;
-
     private const string GameVersion = "0.1";
-    private int MaxPlayersPerRoom = 3;
-    private const int defaultMaxPlayers = 3;
-
+    public int MaxPlayersPerRoom = 2;
+    private const int defaultMaxPlayers = 2;
     private int[,] playersPosition;
     private int playersPositionIndex = 0;
+    // add a table with key = string, value = color of type Color. It start with the key : "G" and the value : Color.green
+    private Dictionary<string, Color> colorList = new Dictionary<string, Color>() { { "G", Color.green }, { "R", Color.red }, { "P", new Color(1, 0, 1, 1) }, { "Y", Color.yellow }, { "B", Color.black}, { "W", Color.white} };
 
     private readonly Tuple<int, int>[] directions = new Tuple<int, int>[4] {
         new Tuple<int, int>(0, -1),
@@ -54,8 +55,40 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     private void Awake() => PhotonNetwork.AutomaticallySyncScene = true;
 
-    private void Start()
+    private async void Start()
     {
+        Debug.Log("Starting menu. Static data is " + StaticData.firstTimeMenu);
+        if (StaticData.firstTimeMenu)
+        {
+            beforeStarting();
+        }
+        else
+        {
+            findOpponentPanel.SetActive(false);
+            Canvas.transform.Find("Image").gameObject.SetActive(false);
+            Canvas.transform.Find("Panel_NameInput").gameObject.SetActive(false);
+            Canvas.transform.Find("Panel_Winning").gameObject.SetActive(true);
+            List<KeyValuePair<string, int>> list = new List<KeyValuePair<string, int>>(StaticData.Classement());
+            // add a textBox for each list element
+            int i = 0;
+            foreach (KeyValuePair<string, int> pair in list)
+            {
+                // add a text box with the name and the points
+                addTextBox(pair.Key.Substring(1), pair.Value, i, false, colorList[pair.Key[0].ToString()], "Finnish_Background", Canvas.transform.Find("Panel_Winning").gameObject);
+                i++;
+            }
+            if ((int)PhotonNetwork.PlayerList[PlayerPrefs.GetInt("Index")].CustomProperties["Point"] == list[0].Value)
+            {
+                Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().text = "You won";
+            }
+            else
+            {
+                Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().text = "Game Over";
+            }
+        }
+    }
+
+    private void beforeStarting(){
         for (int i = 2; i <= 5; i++)
         {
             string nameOfTable = "Table" + i;
@@ -98,6 +131,30 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         findOpponentPanel.SetActive(true);
         // send message to the other players that you disconnected
         Debug.Log($"Disctonnected due to: {cause}");
+    }
+
+    public override void OnPlayerLeftRoom(Player otherPlayer){
+        Debug.Log($"{otherPlayer.NickName} left the room");
+        if (otherPlayer.IsInactive){
+            Debug.Log($"{otherPlayer.NickName} is inactive");
+        }
+        // change the text of the textbox that show the number of players that joined
+        // was otherplayer the master? use custom property
+        if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"]){
+            Debug.Log(otherPlayer.NickName + " is the master: " + otherPlayer.CustomProperties["Master"]);
+            // activate the master panel
+            masterPanel.SetActive(true);
+            // desactivate the panel waitingStatusPanel and the findOpponentPanel
+            waitingStatusPanel.SetActive(false);
+            findOpponentPanel.SetActive(false);
+            // create the master panel items
+            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
+            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
+            PlayersJoinedTextBox = addTextBox("Players that alredy joined", PhotonNetwork.CurrentRoom.PlayerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
+        }
+        else{
+            Debug.Log(otherPlayer.NickName + " is not the master: " + otherPlayer.CustomProperties["Master"]);
+        }
     }
 
     public int calculateMazeSize()
@@ -340,7 +397,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
         if (playerCount != MaxPlayersPerRoom)
         {
-            waitingStatusText.text = "Waiting for opponent";
+            waitingStatusText.text = "Waiting for opponent. " + playerCount + " / " + MaxPlayersPerRoom + " players.";
             Debug.Log("Client is waiting for an opponent");
         }
         else
@@ -364,7 +421,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
             // add in roomoptions customproperties the maxplayersperroom using setCustomproperties
             PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
-            PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 }});
+            PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 }, {"Master", true} });
             playersPositionIndex = 1;
 
             // add a textBox that let him change the number of players in the room. Pay attention if he put a smaller number than the actual number of players that are connected (playerCount). dont forget to update the playerprefs and the maxplayersperroom.
@@ -372,22 +429,23 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             
             masterPanel.SetActive(true);
             waitingStatusPanel.SetActive(false);
-            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true);
-            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false);
-            PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount, 2, false);
+            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
+            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
+            PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
         }
     }
 
-    public GameObject addTextBox(string textToDisplay, int variableToShow, int index, bool allowInput)
+    public GameObject addTextBox(string textToDisplay, int variableToShow, int index, bool allowInput, Color color, string parent, GameObject panel) // add floats: minX, minY, maxX, maxY, between
     {
         if (allowInput){
-            return AddTextBoxAndInput(textToDisplay, variableToShow, index);
+            return AddTextBoxAndInput(textToDisplay, variableToShow, index, color, parent, panel);
         }
         // add a textBox with a parent with the name "RoomInformations"
         GameObject textBox = Instantiate(textBoxPrefab, Vector3.zero, Quaternion.identity);
         // put his parent to the gameObject with the name "RoomInformations" that is a child of masterpanel
-        textBox.transform.SetParent(masterPanel.transform.Find("RoomInformations"));
-
+        textBox.transform.SetParent(panel.transform.Find(parent));
+        // change the name of the textBox
+        textBox.name = textToDisplay;
         // textBox.transform.SetParent(masterPanel.transform.findinchild("RoomInformations"));
         textBox.GetComponent<Text>().text = textToDisplay + ": " + variableToShow;
         // set anchors
@@ -395,22 +453,22 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         textBox.GetComponent<RectTransform>().anchorMax = new Vector2(0.8f, 0.75f - (0.13f * index));
         // position to zero
         textBox.GetComponent<RectTransform>().localPosition = new Vector3(0, 0, 0);
-        textBox.GetComponent<RectTransform>().sizeDelta = new Vector2(0.2f, 0.2f);    
+        textBox.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 0f);    
         textBox.GetComponent<RectTransform>().anchoredPosition3D = Vector3.zero;
         // put his color to dark blue
-        textBox.GetComponent<Text>().color = new Color(0, 0, 0.5f);
+        textBox.GetComponent<Text>().color = color;
         // activate bestFit
         textBox.GetComponent<Text>().resizeTextForBestFit = true;
-        textBox.GetComponent<Text>().resizeTextMinSize = 10;
+        textBox.GetComponent<Text>().resizeTextMinSize = 5;
         textBox.GetComponent<Text>().resizeTextMaxSize = 200;
         return textBox;
     }
 
-    public GameObject AddTextBoxAndInput(string textToDisplay, int variableToShow, int index){
+    public GameObject AddTextBoxAndInput(string textToDisplay, int variableToShow, int index, Color color, string parentStr, GameObject panel){ // parentStr is the parent of parent
         GameObject parent = Instantiate(TextBoxAndField, Vector3.zero, Quaternion.identity);
         // change the name of parent to textToDisplay
         parent.name = textToDisplay;
-        parent.transform.SetParent(masterPanel.transform.Find("RoomInformations"));
+        parent.transform.SetParent(panel.transform.Find(parentStr));
 
         GameObject textBox = parent.transform.Find("TextBox").gameObject;
         GameObject inputField = parent.transform.Find("InputField").gameObject;
@@ -418,16 +476,16 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         parent.GetComponent<RectTransform>().anchorMin = new Vector2(0.2f, 0.67f - (0.13f * index));
         parent.GetComponent<RectTransform>().anchorMax = new Vector2(0.8f, 0.75f - (0.13f * index));
         parent.GetComponent<RectTransform>().localPosition = new Vector3(0, 0, 0);
-        parent.GetComponent<RectTransform>().sizeDelta = new Vector2(0.2f, 0.2f);    
+        parent.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 0f);    
         parent.GetComponent<RectTransform>().anchoredPosition3D = Vector3.zero;
 
         // set the color of the textBox and inputField to dark blue
-        textBox.GetComponent<Text>().color = new Color(0, 0, 0.5f);
+        textBox.GetComponent<Text>().color = color;
         // set the color of the inputfield child named text to dark blue
-        inputField.transform.Find("Text").GetComponent<Text>().color = new Color(0, 0, 0.5f);
+        inputField.transform.Find("Text").GetComponent<Text>().color = color;
         // activate bestFit of the textBox
         textBox.GetComponent<Text>().resizeTextForBestFit = true;
-        textBox.GetComponent<Text>().resizeTextMinSize = 10;
+        textBox.GetComponent<Text>().resizeTextMinSize = 5;
         textBox.GetComponent<Text>().resizeTextMaxSize = 200;
 
         // set the text of the textBox
@@ -456,7 +514,8 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 // change the maxplayersperroom in the room properties and PlayerPrefs
                 PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
                 PlayerPrefs.SetInt("MaxPlayersPerRoom", MaxPlayersPerRoom);
-                
+                // change the text of textbox that contain the number of trophies
+                masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + (2 * MaxPlayersPerRoom + 1);
                 PhotonNetwork.CurrentRoom.MaxPlayers = (byte)MaxPlayersPerRoom;
                 // actualize the text of the textBox
                 masterPanel.transform.Find("RoomInformations").Find("Max Players").Find("TextBox").GetComponent<Text>().text = "Max Players: " + MaxPlayersPerRoom;
@@ -520,7 +579,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         // change the text in playersJoinedTextBox
         PlayersJoinedTextBox.GetComponent<Text>().text = "Players that alredy joined: " + PhotonNetwork.CurrentRoom.PlayerCount;
         // add custom properties to the player
-        newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 } });
+        newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 }, {"Master", newPlayer.IsMasterClient} });
         Debug.Log("Photon_Menu - Giving index:" + playersPositionIndex + " to " + newPlayer.NickName);
         this.photonView.RPC("ChangePlayerVariables", newPlayer, playersPositionIndex); 
         playersPositionIndex++;
@@ -620,7 +679,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         PlayerPrefs.SetInt("PositionX", placeX);
         PlayerPrefs.SetInt("PositionY", placeY);
         PlayerPrefs.SetInt("RotationY", rotation);
+        PlayerPrefs.SetInt("Trophies", 2 * (int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] + 1);
     }
 }
-
-// when a player quit, actualize the textBox 
