@@ -57,9 +57,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     private async void Start()
     {
-        Debug.Log("Starting menu. Static data is " + StaticData.firstTimeMenu);
         if (StaticData.firstTimeMenu)
         {
+            StaticData.firstTimeMenu = false;
             beforeStarting();
         }
         else
@@ -77,7 +77,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 addTextBox(pair.Key.Substring(1), pair.Value, i, false, colorList[pair.Key[0].ToString()], "Finnish_Background", Canvas.transform.Find("Panel_Winning").gameObject);
                 i++;
             }
-            if ((int)PhotonNetwork.PlayerList[PlayerPrefs.GetInt("Index")].CustomProperties["Point"] == list[0].Value)
+            if ((int)PhotonNetwork.LocalPlayer.CustomProperties["Point"] == (int)list[0].Value) // (int)PhotonNetwork.PlayerList[PlayerPrefs.GetInt("Index")].CustomProperties["Point"] is not working. (giving the master one)
             {
                 Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().text = "You won";
             }
@@ -85,6 +85,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             {
                 Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().text = "Game Over";
             }
+            PhotonNetwork.LeaveRoom();
         }
     }
 
@@ -94,6 +95,16 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             string nameOfTable = "Table" + i;
             PlayerPrefs.SetString(nameOfTable, "");
         }
+    }
+
+    public void ActivateMenu(){
+        // make the cursor visible
+        Cursor.visible = true;
+        findOpponentPanel.SetActive(true);
+        // waitingStatusPanel.SetActive(false);
+        Canvas.transform.Find("Panel_Winning").gameObject.SetActive(false);
+        // set image active
+        Canvas.transform.Find("Image").gameObject.SetActive(true);
     }
     public void FindOpponent()
     {
@@ -118,7 +129,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     public override void OnConnectedToMaster()
     {
         Debug.Log("Connected to Master");
-
         if (isConnecting)
         {
             PhotonNetwork.JoinRandomRoom();
@@ -398,7 +408,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         if (playerCount != MaxPlayersPerRoom)
         {
             waitingStatusText.text = "Waiting for opponent. " + playerCount + " / " + MaxPlayersPerRoom + " players.";
-            Debug.Log("Client is waiting for an opponent");
         }
         else
         {
@@ -608,7 +617,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 // remaking the table of playerPosition if the maxPlayers is changed
                 if (MaxPlayersPerRoom != defaultMaxPlayers)
                 {
-                    playersPosition = GeneratePlayerPositions(playersPosition);
+                    playersPosition = GeneratePlayerPositions(new int[MaxPlayersPerRoom, 2]);
                 }
                 // go over all players
                 foreach (Player player in PhotonNetwork.PlayerList)

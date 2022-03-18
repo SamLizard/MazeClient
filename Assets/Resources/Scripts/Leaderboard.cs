@@ -9,7 +9,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
 {
     private GameObject LeaderboardPanel;
     private GameObject Spawning;
-    public float[] textLenght = new float[4] { 0.45f, 0.3f, 0.225f, 0.18f}; // 2, 3, 4, 5 players
+    public float[] textLenght; // 2, 3, 4, 5 players { 0.45f, 0.3f, 0.225f, 0.18f}
     public float percentMargin = 0.03f;
     public float betweenTwoTextBoxes = 0.02f; 
     private const float anchorPanelDefault = 0.176f;
@@ -25,6 +25,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         Spawning = GameObject.FindWithTag("Spawning");
         restantTrophies = PlayerPrefs.GetInt("Trophies");
         Debug.Log("27restantTrophies = " + restantTrophies);
+        textLenght = new float[4] { 0.45f, 0.3f, 0.225f, 0.18f}; // { 0.225f, 0.15f, 0.1125f, 0.09f };
         InstantiateLeaderboard();
     }
 
@@ -36,7 +37,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         LeaderboardPanel.GetComponent<RectTransform>().anchorMax = new Vector2(0.2f, 0.97f);
         
         betweenTwoTextBoxes = (float)((1 - (2 * percentMargin) - (numOfPlayers * textLenght[numOfPlayers - 2])) / (numOfPlayers - 1));
-        Debug.Log("Leaderboard script 52:\nbetweenTwoTextBoxes: " + betweenTwoTextBoxes);
+        Debug.Log("Leaderboard script 52:\nbetweenTwoTextBoxes: " + betweenTwoTextBoxes + "\npercentMargin: " + percentMargin + "\ntextLenght: " + textLenght[numOfPlayers - 2] + "\nnumOfPlayers: " + numOfPlayers);
         textBoxes = new GameObject[numOfPlayers];
         PointTextBoxes = new GameObject[numOfPlayers];
         SetTextBoxes(numOfPlayers, 0.15f, 0.75f, textBoxes);
@@ -51,10 +52,10 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         {
             GameObject textBox = Instantiate(textBoxePrefab, Vector3.zero, Quaternion.identity);
             textBox.transform.SetParent(LeaderboardPanel.transform);
-            textBox.GetComponent<RectTransform>().anchorMax = new Vector2(anchorXMax, 1 - percentMargin - (i * (textLenght[numOfPlayers - 2] + betweenTwoTextBoxes)));
-            textBox.GetComponent<RectTransform>().anchorMin = new Vector2(anchorXMin, 1 - percentMargin - (i * (textLenght[numOfPlayers - 2] + betweenTwoTextBoxes)) - textLenght[numOfPlayers - 2]);
+            textBox.GetComponent<RectTransform>().anchorMax = new Vector2(anchorXMax, 1 - percentMargin - (i * (textLenght[numOfPlayers - 2] + betweenTwoTextBoxes)) - textLenght[numOfPlayers - 2] * 0.3f); // pay attention when there is three players.   - (textLenght[numOfPlayers - 2] * (5 - numOfPlayers)) / 10
+            textBox.GetComponent<RectTransform>().anchorMin = new Vector2(anchorXMin, 1 - percentMargin - (i * (textLenght[numOfPlayers - 2] + betweenTwoTextBoxes)) - textLenght[numOfPlayers - 2] * 0.7f); //  + (textLenght[numOfPlayers - 2] * (5 - numOfPlayers)) / 10
             textBox.GetComponent<RectTransform>().localPosition = new Vector3(0, 0, 0);
-            textBox.GetComponent<RectTransform>().sizeDelta = new Vector2(textLenght[numOfPlayers - 2], anchorXMax - anchorXMin);    
+            textBox.GetComponent<RectTransform>().sizeDelta = new Vector2(textLenght[numOfPlayers - 2] * 0.4f, anchorXMax - anchorXMin);    //  - (textLenght[numOfPlayers - 2] * (5 - numOfPlayers)) / 5 
             textBox.GetComponent<RectTransform>().anchoredPosition3D = Vector3.zero;
             Debug.Log("New Text Box created. AnchorMin: " + textBox.GetComponent<RectTransform>().anchorMin + " AnchorMax: " + textBox.GetComponent<RectTransform>().anchorMax + "\nAt index: " + i + "\nOffsetMin: " + textBox.GetComponent<RectTransform>().offsetMin + "\nLocalPosition: " + textBox.GetComponent<RectTransform>().localPosition + "\nPosition: " + textBox.transform.position);
             boxesTable[i] = textBox;
@@ -72,7 +73,6 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         }
     }
 
-    // override
     public override void OnPlayerPropertiesUpdate (Player target, ExitGames.Client.Photon.Hashtable changedProps)
     {
         Debug.Log("OnPlayerPropertiesUpdate. Player: " + target.NickName + " changed properties: " + changedProps);
@@ -84,13 +84,12 @@ public class Leaderboard : MonoBehaviourPunCallbacks
                 PointTextBoxes[(int)target.CustomProperties["Index"]].GetComponent<Text>().text = target.CustomProperties["Point"].ToString();
             }
             Spawning.GetComponent<spawning>().UpdateLeaderboard(target);
-            CheckGameEnd();
         }
     }
 
     public void UpdateOtherPoints(Player player){
         Debug.Log("Player " + player.NickName + " has changed his points to " + player.CustomProperties["Point"]);
-        if (player.NickName == textBoxes[(int)player.CustomProperties["Index"]].GetComponent<Text>().text) // check if it is not me
+        if (player.NickName == textBoxes[(int)player.CustomProperties["Index"]].GetComponent<Text>().text) // add something that check if it is not me?
         {
             PointTextBoxes[(int)player.CustomProperties["Index"]].GetComponent<Text>().text = player.CustomProperties["Point"].ToString();
             restantTrophies--;
@@ -182,6 +181,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         {
             if ((int)player.CustomProperties["Point"] > firstPlayerPoints)
             {
+                secondPlayerPoints = firstPlayerPoints;
                 firstPlayerPoints = (int)player.CustomProperties["Point"];
             }
             else if ((int)player.CustomProperties["Point"] > secondPlayerPoints)
@@ -205,7 +205,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         if (isFirstPlayerWinner || isTwoFirstEquals)
         {
             // call the finish game function
-            Debug.Log("isFirstPlayerWinner: " + isFirstPlayerWinner + "\nisTwoFirstEquals: " + isTwoFirstEquals + "\nrestantTrophies: " + restantTrophies);
+            Debug.Log("isFirstPlayerWinner: " + isFirstPlayerWinner + "\nisTwoFirstEquals: " + isTwoFirstEquals + "\nrestantTrophies: " + restantTrophies + "\nfirstPlayerPoints: " + firstPlayerPoints + "\nsecondPlayerPoints: " + secondPlayerPoints);
             FinishGame();
             return true;
         }
@@ -217,13 +217,15 @@ public class Leaderboard : MonoBehaviourPunCallbacks
     {
         // call a method that save the data from the game: list of points, winner.
         SaveData();
-        PhotonNetwork.LeaveRoom();
-        PhotonNetwork.LoadLevel("Lobby");
+        Debug.Log("FinishGame.\nNumber of players: " + PhotonNetwork.PlayerList.Length);
+        if (PhotonNetwork.IsMasterClient){
+            Debug.Log("FinishGame. PhotonNetwork.IsMasterClient:" + PhotonNetwork.IsMasterClient);
+            PhotonNetwork.LoadLevel("Lobby");
+        }
     }
 
     // method that save the data from the game: list of points, winner.
     public void SaveData(){
-        StaticData.firstTimeMenu = false;
         int maxTrophies = 0;
         for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++)
         {
@@ -231,7 +233,6 @@ public class Leaderboard : MonoBehaviourPunCallbacks
             {
                 maxTrophies = (int)PhotonNetwork.PlayerList[i].CustomProperties["Point"];
             }
-            StaticData.maxTrophies = maxTrophies;
             StaticData.playerPoints.Add(PhotonNetwork.PlayerList[i].CustomProperties["ColorName"] + PhotonNetwork.PlayerList[i].NickName, (int)PhotonNetwork.PlayerList[i].CustomProperties["Point"]);
         }
     }
