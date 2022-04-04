@@ -73,7 +73,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         }
     }
 
-    public override void OnPlayerPropertiesUpdate (Player target, ExitGames.Client.Photon.Hashtable changedProps)
+    public override void OnPlayerPropertiesUpdate (Player target, ExitGames.Client.Photon.Hashtable changedProps) // when player properties has changed in my version (of my computer).
     {
         Debug.Log("OnPlayerPropertiesUpdate. Player: " + target.NickName + " changed properties: " + changedProps);
         if (changedProps.ContainsKey("Point"))
@@ -87,7 +87,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         }
     }
 
-    public void UpdateOtherPoints(Player player){
+    public void UpdateOtherPoints(Player player){ // when another computer changed his player properties table, this is received on all computers (y compris moi meme).
         Debug.Log("Player " + player.NickName + " has changed his points to " + player.CustomProperties["Point"]);
         if (player.NickName == textBoxes[(int)player.CustomProperties["Index"]].GetComponent<Text>().text) // add something that check if it is not me?
         {
@@ -119,7 +119,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
                 {
                     // set a hashtable with the player custom properties of the player that won the game
                     ExitGames.Client.Photon.Hashtable props = player.CustomProperties;
-                    props["Point"] = PlayerPrefs.GetInt("Trophies") - (int)otherPlayer.CustomProperties["Point"];
+                    props["Point"] = PlayerPrefs.GetInt("Trophies"); // (int)player.CustomProperties["Point"] + restantTrophies //  - (int)otherPlayer.CustomProperties["Point"]
                     foreach (int value in StaticData.playerPoints.Values)
                     {
                         props["Point"] = (int)props["Point"] - value;

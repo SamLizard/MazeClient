@@ -10,7 +10,7 @@ namespace FIMSpace.Basics
     {
         protected override void Update()
         {
-            if (photonView.IsMine) 
+            if (gameObject.GetComponent<PhotonView>() == null || photonView.IsMine) 
             {
                 Vector2 inputValue = Vector2.zero;
 

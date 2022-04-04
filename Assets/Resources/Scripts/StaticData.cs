@@ -5,8 +5,10 @@ using UnityEngine;
 public static class StaticData
 {
     public static bool firstTimeMenu = true;
+    public static bool commingFromAloneMode = false; 
     public static Dictionary<string, int> playerPoints = new Dictionary<string, int>(); // name, points. the first character of the name is the color.    
     public static int maxTrophies;
+
     public static List<KeyValuePair<string, int>> Classement(){
         // order the playerPoints by value. from the highest to the lowest. The first one is the highest.
         List<KeyValuePair<string, int>> list = new List<KeyValuePair<string, int>>(playerPoints);
@@ -24,5 +26,10 @@ public static class StaticData
             i++;
         }
         return list;
+    }
+
+    public static void CleanList()
+    {
+        playerPoints.Clear();
     }
 }

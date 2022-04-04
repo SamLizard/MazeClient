@@ -11,12 +11,9 @@ public class spawning : MonoBehaviourPun
     [SerializeField] private GameObject data = null;
     [SerializeField] private GameObject playerPrefab = null;
     [SerializeField] public GameObject LeaderboardPanel;
-
     private readonly int square_size = 10;
     private int size;
-
     public GameObject Trophy;
-
     private int[] playersPoints;
     public int playerIndex = -1;
     public string[] playerNames;
@@ -44,6 +41,7 @@ public class spawning : MonoBehaviourPun
             int tableSize = PlayerPrefs.GetInt("Size");
             size = tableSize;
             string tableString = PlayerPrefs.GetString("Table" + PlayerPrefs.GetInt("MaxPlayersPerRoom").ToString());
+            Debug.Log("Spawning:\ntableString: " + tableString + "\nMaxPlayersPerRoom: " + PlayerPrefs.GetInt("MaxPlayersPerRoom") + "\nThe string for the PlayerPrefs is: " + "Table" + PlayerPrefs.GetInt("MaxPlayersPerRoom").ToString());
             int[,] tableData = stringToTable(tableString);
 
             photonData.GetComponent<Data>().setTable(tableSize, tableString, PhotonNetwork.IsMasterClient);

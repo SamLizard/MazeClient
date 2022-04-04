@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class ClientScript : MonoBehaviour
 {
@@ -11,7 +12,9 @@ public class ClientScript : MonoBehaviour
     public GameObject[] squares;
 
     public GameObject PlayerPrefab;
-    
+
+    public GameObject Trophy;
+
     private readonly Tuple<int, int>[] directions = new Tuple<int, int>[4] {
         new Tuple<int, int>(0, -1),
         new Tuple<int, int>(-1, 0),
@@ -19,19 +22,224 @@ public class ClientScript : MonoBehaviour
         new Tuple<int, int>(1, 0)
     };
 
+    private readonly int[][] RandomDirections = new int[24][] {
+        new int[4] {0, 1, 2, 3 }, new int[4] {0, 1, 3, 2 }, new int[4] {0, 2, 1, 3 }, new int[4] {0, 2, 3, 1 }, new int[4] {0, 3, 2, 1 }, new int[4] {0, 3, 1, 2 },
+        new int[4] {1, 0, 2, 3 }, new int[4] {1, 0, 3, 2 }, new int[4] {1, 2, 0, 3 }, new int[4] {1, 2, 3, 0 }, new int[4] {1, 3, 2, 0 }, new int[4] {1, 3, 0, 2 },
+        new int[4] {2, 0, 1, 3 }, new int[4] {2, 0, 3, 1 }, new int[4] {2, 1, 3, 0 }, new int[4] {2, 1, 0, 3 }, new int[4] {2, 3, 0, 1 }, new int[4] {2, 3, 1, 0 },
+        new int[4] {3, 0, 2, 1 }, new int[4] {3, 0, 1, 2 }, new int[4] {3, 1, 2, 0 }, new int[4] {3, 1, 0, 2 }, new int[4] {3, 2, 1, 0 }, new int[4] {3, 2, 0, 1 },
+    };
+
     void Start()
     {
+        size = 7;
         int startingPosition = ((size - (1 * size % 2)) / 2) * -square_size;
         PlayerPrefab.transform.position = new Vector3(startingPosition, 0.5f, startingPosition);
-        // GameObject Player = Instantiate(PlayerPrefab, new Vector3(startingPosition, 0.5f, startingPosition), Quaternion.identity);
-        // Player.transform.SetParent(GameObject.FindWithTag("Map").transform);
-
-        // Add a scene that have a decompte of 5 secondes (or 3s). The table is sent here in this time, and instantiated before the timer is finnished. After the 5 secondes, the scene is changed.
-        // take table from server
-        int[,] table = new int[3, 3] { { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 } };
+        
+        int[,] table = CreateMazeList();
+        table[0, 0] = 2; // set the possibilitie of putting here a throphy to false;
         InstantiateMaze(table);
-        // for the trophy part, in server make a list of nodes that contain the place of each trophy. here, add a method that instantiate them in unity
+        InstansiateTrophies(1, table);
     }
+
+    public void TrophyTaken()
+    {
+        StaticData.firstTimeMenu = true;
+        StaticData.commingFromAloneMode = true;
+        SceneManager.LoadScene("Lobby");
+    }
+
+    public void InstansiateTrophies(int numOfThrophies, int[,] table)
+    {
+        int tablePointSize = (table.GetLength(0) - 1) / 2;
+        if (numOfThrophies < (Math.Pow(tablePointSize, 2) / 3))
+        {
+            int initial_place = (((-size / 2)) * square_size);
+            for (int i = 0; i < numOfThrophies; i++)
+            {
+                int row = UnityEngine.Random.Range(0, tablePointSize);
+                int column = UnityEngine.Random.Range(0, tablePointSize);
+                if (table[row, column] == 1)
+                {
+                    GameObject trophy = Instantiate(Trophy, new Vector3(initial_place + (row * 2 * square_size), 0.4f, initial_place + (column * 2 * square_size)), Quaternion.identity);
+                    trophy.transform.localScale = new Vector3(5, 5, 5);
+                    table[row, column] = 2;
+                }
+                else
+                {
+                    i--;
+                }
+            }
+        }
+    }
+
+    private int[,] CreateMazeList()
+    {
+        int[,] table = InitialBoard(size); // integrate this in the Point class
+        Point[,] tablePoint = BuildListOfPoint(size);
+        int length = tablePoint.GetLength(0);
+        int PointRow = UnityEngine.Random.Range(0, length);
+        int PointColumn = UnityEngine.Random.Range(0, length);
+        int actualDirection;
+        Compartiment lastCompartiment = tablePoint[length - 1, length - 1].getCompartiment();
+
+        table = ConnectEveryPoint(table, tablePoint); // connect every point one time
+        while (!lastCompartiment.isEqual())
+        {
+            actualDirection = -1;
+            while (actualDirection == -1)
+            {
+                PointRow = UnityEngine.Random.Range(0, length);
+                PointColumn = UnityEngine.Random.Range(0, length);
+                if (tablePoint[PointRow, PointColumn].hasRemainingConnections())
+                {
+                    actualDirection = ChoosePointDirection(tablePoint[PointRow, PointColumn].getDirections(), tablePoint, PointRow, PointColumn);
+                }
+            }
+            UpdatePointTable(tablePoint, actualDirection, PointRow, PointColumn);
+            table = UpdateTable(table, actualDirection, PointRow, PointColumn);
+        }
+        return table;
+    }
+
+    private int[,] InitialBoard(int size)
+    {
+        int[,] table = new int[size + 1 - size % 2, size + 1 - size % 2];
+        for (int i = 0; i < size; i += 2)
+        {
+            for (int j = 0; j < size; j += 2)
+            {
+                table[i, j] = 1;
+            }
+        }
+        return table;
+    }
+
+    private int[,] UpdateTable(int[,] table, int actualDirection, int row, int column)
+    {
+        row *= 2;
+        column *= 2;
+        table[row, column] = 1;
+        (int x, int y) = directions[actualDirection];
+        table[row + x, column + y] = 1;
+        table[row + 2 * x, column + 2 * y] = 1;
+        return table;
+    }
+
+    private Point[,] BuildListOfPoint(int size)
+    {
+        int tableLength = (int)Math.Ceiling(size / 2.0);
+        Point[,] table = new Point[tableLength, tableLength];
+        for (int i = 0; i < tableLength; i++)
+        {
+            for (int j = 0; j < tableLength; j++)
+            {
+                table[i, j] = new Point(false, i * tableLength + j + 1, i, j, tableLength);
+            }
+        }
+        return table;
+    }
+
+    public int[,] ConnectEveryPoint(int[,] table, Point[,] tablePoint)
+    {
+        int tableLength = tablePoint.GetLength(0);
+        for (int row = 0; row < tableLength; row++)
+        {
+            for (int column = 0; column < tableLength; column++)
+            {
+                if (!tablePoint[row, column].getConnection())
+                {
+                    int actualDirection = ChoosePointDirection(tablePoint[row, column].getDirections(), tablePoint, row, column);
+                    UpdatePointTable(tablePoint, actualDirection, row, column);
+                    table = UpdateTable(table, actualDirection, row, column);
+                }
+            }
+        }
+        return table;
+    }
+
+    private int ChoosePointDirection(bool[] pointDirections, Point[,] tablePoint, int row, int column)
+    {
+        int directionIndex = UnityEngine.Random.Range(0, 23);
+        foreach (int direction in RandomDirections[directionIndex])
+        {
+            (int x, int y) = directions[direction];
+            if (tablePoint[row, column].canConnect(direction) && tablePoint[row + x, column + y].hasRemainingConnections())
+            {
+                return direction;
+            }
+        }
+        return -1;
+    }
+
+    public void UpdatePointCompartiment(Point actualPoint, Point pointedPoint, Point[,] tablePoint)
+    {
+        int biggestCompartimentValue = Math.Max(actualPoint.getCompartiment().getValue(), pointedPoint.getCompartiment().getValue());
+        if (actualPoint.getCompartiment().getValue() == biggestCompartimentValue)
+        {
+            Point actualPointToTransfer = actualPoint;
+            actualPoint = pointedPoint;
+            pointedPoint = actualPointToTransfer;
+        }
+        if (!actualPoint.getConnection() && !pointedPoint.getConnection())
+        {
+            actualPoint.setCompartiment(pointedPoint.getCompartiment());
+            pointedPoint.getCompartiment().addCount(1);
+        }
+        else
+        {
+            Compartiment actualPointLastCompartiment = ConnectToLastCompartimentOf(actualPoint.getCompartiment(), 0);
+            Compartiment pointedPointLastCompartiment = ConnectToLastCompartimentOf(pointedPoint.getCompartiment(), 0);
+            ConnectCompartiments(actualPointLastCompartiment, pointedPointLastCompartiment);
+        }
+    }
+
+    private void UpdatePointTable(Point[,] tablePoint, int actualDirection, int row, int column)
+    {
+        Point actualPoint = tablePoint[row, column];
+        (int x, int y) = directions[actualDirection];
+        Point pointedPoint = tablePoint[row + x, column + y];
+        UpdatePointCompartiment(actualPoint, pointedPoint, tablePoint);
+        actualPoint.setConnection();
+        pointedPoint.setConnection();
+        actualPoint.setDirections(actualDirection);
+        pointedPoint.setDirections(InverseDirection(actualDirection));
+    }
+
+    private int InverseDirection(int actualDirection)
+    {
+        return (actualDirection + 2) % 4;
+    }
+
+    public Compartiment ConnectToLastCompartimentOf(Compartiment actualCompartiment, int count)
+    {
+        if (actualCompartiment.getNext() != null)
+        {
+            Compartiment lastCompartiment = ConnectToLastCompartimentOf(actualCompartiment.getNext(), actualCompartiment.getCount());
+            actualCompartiment.setNext(lastCompartiment);
+            actualCompartiment.addCount(-count);
+            return lastCompartiment;
+        }
+        return actualCompartiment;
+    }
+
+    public void ConnectCompartiments(Compartiment first, Compartiment second)
+    {
+        if (first.getValue() > second.getValue())
+        {
+            first.addCount(second.getCount());
+            second.setNext(first);
+        }
+        else
+        {
+            if (second.getValue() > first.getValue())
+            {
+                second.addCount(first.getCount());
+                first.setNext(second);
+            }
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// build the maze from a int[,]
 
     private bool IsOutOfBounds(int row, int column)
     {

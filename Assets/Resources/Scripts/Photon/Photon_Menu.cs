@@ -6,6 +6,7 @@ using TMPro;
 using Photon.Realtime;
 using System;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class Photon_Menu : MonoBehaviourPunCallbacks
 {
@@ -55,15 +56,37 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     private void Awake() => PhotonNetwork.AutomaticallySyncScene = true;
 
-    private async void Start()
+    void Update()
+    {
+        if (Canvas.transform.Find("Panel_Winning").gameObject.active && Cursor.visible == false)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Debug.Log("Cursor was not visible.");
+        }
+    }
+
+    private void Start()
     {
         if (StaticData.firstTimeMenu)
         {
             StaticData.firstTimeMenu = false;
-            beforeStarting();
+            if (StaticData.commingFromAloneMode)
+            {
+                Canvas.transform.Find("Panel_NameInput").gameObject.SetActive(false);
+                Canvas.transform.Find("Panel_FindOpponent").gameObject.SetActive(true);
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            else
+            {
+                beforeStarting();
+            }
         }
         else
         {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
             findOpponentPanel.SetActive(false);
             Canvas.transform.Find("Image").gameObject.SetActive(false);
             Canvas.transform.Find("Panel_NameInput").gameObject.SetActive(false);
@@ -85,6 +108,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             {
                 Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().text = "Game Over";
             }
+            StaticData.CleanList();
             PhotonNetwork.LeaveRoom();
         }
     }
@@ -106,6 +130,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         // set image active
         Canvas.transform.Find("Image").gameObject.SetActive(true);
     }
+
     public void FindOpponent()
     {
         isConnecting = true;
@@ -124,6 +149,11 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             PhotonNetwork.GameVersion = GameVersion;
             PhotonNetwork.ConnectUsingSettings();
         }
+    }
+
+    public void CreateNewRoom()
+    {
+        SceneManager.LoadScene("SampleScene");
     }
 
     public override void OnConnectedToMaster()
@@ -518,7 +548,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     public void CheckChangingMaxPlayers(GameObject inputFieldMaxPlayers){
         if (int.TryParse(inputFieldMaxPlayers.GetComponent<InputField>().text, out int playersInInput)){
             int playerCount = PhotonNetwork.CurrentRoom.PlayerCount;
-            if (playersInInput >= playerCount && playersInInput <= 5 && playersInInput >= 2){
+            if (playersInInput >= playerCount && playersInInput <= 5 && playersInInput >= 2) {
                 MaxPlayersPerRoom = playersInInput;
                 // change the maxplayersperroom in the room properties and PlayerPrefs
                 PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
@@ -530,11 +560,17 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 masterPanel.transform.Find("RoomInformations").Find("Max Players").Find("TextBox").GetComponent<Text>().text = "Max Players: " + MaxPlayersPerRoom;
                 // if is equal to the actual number of players that are connected, start the game
                 string nameOfTable = "Table" + MaxPlayersPerRoom.ToString();
-                if (PlayerPrefs.GetString(nameOfTable) == "" && MaxPlayersPerRoom != defaultMaxPlayers){
+                if (PlayerPrefs.GetString(nameOfTable) == "" && MaxPlayersPerRoom != defaultMaxPlayers) {
                     Debug.Log("Generating a Maze when the max players equals: " + MaxPlayersPerRoom);
                     StartCoroutine(GenerateMaze());
                 }
-                else{
+                else
+                {
+                    if (PlayerPrefs.GetString(nameOfTable) != "" && MaxPlayersPerRoom == defaultMaxPlayers)
+                    {
+                        size = calculateMazeSize();
+                        PlayerPrefs.SetInt("Size", size);
+                    }
                     Debug.Log("I didn't entered in the if because: " + (bool)(PlayerPrefs.GetString(nameOfTable) == "") + " and " + (bool)(MaxPlayersPerRoom != defaultMaxPlayers));
                     Debug.Log("The table is already: " + PlayerPrefs.GetString(nameOfTable));
                 }

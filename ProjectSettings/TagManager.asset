@@ -9,6 +9,7 @@ TagManager:
   - WaitingPanel
   - Spawning
   - LeaderboardPanel
+  - Client
   layers:
   - Default
   - TransparentFX
