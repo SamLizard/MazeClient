@@ -23,7 +23,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     public int MaxPlayersPerRoom = 2;
     private const int defaultMaxPlayers = 2;
     private int[,] playersPosition;
-    private int playersPositionIndex = 0;
+    // private int playersPositionIndex = 0;
     private Dictionary<string, Color> colorList = new Dictionary<string, Color>() { { "G", Color.green }, { "R", Color.red }, { "P", new Color(1, 0, 1, 1) }, { "Y", Color.yellow }, { "B", Color.black}, { "W", Color.white} };
     private readonly Tuple<int, int>[] positions = new Tuple<int, int>[4] {
         new Tuple<int, int>(1, 1),
@@ -146,7 +146,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         if (otherPlayer.IsInactive){
             Debug.Log($"{otherPlayer.NickName} is inactive");
         }
-        // change the text of the textbox that show the number of players that joined
         // was otherplayer the master? use custom property
         if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"]){
             Debug.Log(otherPlayer.NickName + " is the master: " + otherPlayer.CustomProperties["Master"]);
@@ -160,21 +159,25 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
             PlayersJoinedTextBox = addTextBox("Players that alredy joined", PhotonNetwork.CurrentRoom.PlayerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
         }
+        else if(PhotonNetwork.IsMasterClient){
+            PlayersJoinedTextBox.GetComponent<Text>().text = "Players that already joined: " + PhotonNetwork.CurrentRoom.PlayerCount.ToString();
+        }
         else{
-            Debug.Log(otherPlayer.NickName + " is not the master: " + otherPlayer.CustomProperties["Master"]);
+            waitingStatusText.text = "Waiting for opponents.\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + MaxPlayersPerRoom + " players.";
         }
     }
 
     public int calculateMazeSize()
     {
+        Debug.Log("172CalculateMazeSize. MaxPlayersPerRoom is: " + MaxPlayersPerRoom + ".");
         return 12 * MaxPlayersPerRoom + 1;
     }
 
     public override void OnJoinRandomFailed(short returnCode, string message)
     {
-        Debug.Log("No clients are waiting  for an opponent, creating a new room");
+        Debug.Log("No clients are waiting  for an opponent, creating a new room\n" + message);
 
-        PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = (byte)MaxPlayersPerRoom }); // enter as master
+        PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = (byte)MaxPlayersPerRoom });
     }
 
     IEnumerator GenerateMaze()
@@ -203,8 +206,8 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         int placeY = startingPosition;
         for (int i = 0; i < MaxPlayersPerRoom; i++)
         {
-            (int x, int y) = positions[i];
             if (i < 4){
+                (int x, int y) = positions[i];
                 placeX = x * startingPosition;
                 placeY = y * startingPosition;
             }
@@ -226,26 +229,30 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
         if (playerCount != MaxPlayersPerRoom)
         {
-            waitingStatusText.text = "Waiting for opponent. " + playerCount + " / " + MaxPlayersPerRoom + " players.";
+            waitingStatusText.text = "Waiting for opponents. " + playerCount + " / " + MaxPlayersPerRoom + " players.";
         }
         else
         {
             waitingStatusText.text = "Opponent found";
             Debug.Log("Mach is ready to begin");
         }
+        if (!PhotonNetwork.IsMasterClient)
+        {
+            waitingStatusText.text = "Waiting for Players\n" + playerCount + " / " + PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"];
+        }
         if (PhotonNetwork.IsMasterClient)
         {
             Debug.Log("I am the master");
             Debug.Log("Starting GenerateMaze Coroutine.");
             StartCoroutine(GenerateMaze());
-
+            size = calculateMazeSize();
             playersPosition = new int[MaxPlayersPerRoom, 2];
             playersPosition = GeneratePlayerPositions(playersPosition);
-            StaticData.colorName = colorName[playersPositionIndex];
+            StaticData.colorName = colorName[0]; 
             // add in roomoptions customproperties the maxplayersperroom using setCustomproperties
             PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
-            PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 }, {"Master", true} });
-            playersPositionIndex = 1;
+            PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[0] }, { "Index", 0}, { "Point", 0 }, {"Master", true} });
+            // playersPositionIndex = 1;
             
             masterPanel.SetActive(true);
             waitingStatusPanel.SetActive(false);
@@ -333,19 +340,25 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 // change the maxplayersperroom in the room properties
                 PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
                 // change the text of textbox that contain the number of trophies
-                masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + (2 * MaxPlayersPerRoom + 1);
-                // PhotonNetwork.CurrentRoom.MaxPlayers = (byte)MaxPlayersPerRoom;
+                masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + (2 * MaxPlayersPerRoom + 1); //#// put it in a method
+                // say to photon that it can let players enter until the new maxplayers is reached
+                PhotonNetwork.CurrentRoom.MaxPlayers = (byte)MaxPlayersPerRoom;
                 // actualize the text of the textBox
                 masterPanel.transform.Find("RoomInformations").Find("Max Players").Find("TextBox").GetComponent<Text>().text = "Max Players: " + MaxPlayersPerRoom;
                 // if is equal to the actual number of players that are connected, start the game
                 // string nameOfTable = "Table" + MaxPlayersPerRoom.ToString();
+                
+                size = calculateMazeSize();
+                playersPosition = new int[MaxPlayersPerRoom, 2];
+                playersPosition = GeneratePlayerPositions(playersPosition);
+                
                 if (StaticData.IsEmptyAt(MaxPlayersPerRoom) && MaxPlayersPerRoom != defaultMaxPlayers) { 
                     Debug.Log("Generating a Maze when the max players equals: " + MaxPlayersPerRoom);
                     StartCoroutine(GenerateMaze());
                 }
                 else
                 {
-                    if (!StaticData.IsEmptyAt(MaxPlayersPerRoom) && MaxPlayersPerRoom == defaultMaxPlayers)
+                    if (!StaticData.IsEmptyAt(MaxPlayersPerRoom)) //  && MaxPlayersPerRoom == defaultMaxPlayers
                     {
                         size = calculateMazeSize();
                         Static_Methods.size = size;
@@ -353,6 +366,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                     }
                 }
                 if (playersInInput == playerCount){
+                    Debug.Log("##Closing game. Max players equals: " + MaxPlayersPerRoom + " and player count equals: " + playerCount);
                     PhotonNetwork.CurrentRoom.IsOpen = false;
 
                     waitingStatusText.text = "Opponent found";
@@ -406,13 +420,14 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         // change the text in playersJoinedTextBox
         PlayersJoinedTextBox.GetComponent<Text>().text = "Players that alredy joined: " + PhotonNetwork.CurrentRoom.PlayerCount;
         // add custom properties to the player
-        newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[playersPositionIndex] }, { "Index", playersPositionIndex}, { "Point", 0 }, {"Master", newPlayer.IsMasterClient} });
-        Debug.Log("Photon_Menu - Giving index:" + playersPositionIndex + " to " + newPlayer.NickName);
-        this.photonView.RPC("ChangePlayerVariables", newPlayer, playersPositionIndex); 
-        playersPositionIndex++;
+        newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[PhotonNetwork.CurrentRoom.PlayerCount - 1] }, { "Index", PhotonNetwork.CurrentRoom.PlayerCount - 1}, { "Point", 0 }, {"Master", newPlayer.IsMasterClient} });
+        Debug.Log("Photon_Menu - Giving index:" + ((int)PhotonNetwork.CurrentRoom.PlayerCount - 1).ToString() + " to " + newPlayer.NickName);
+        this.photonView.RPC("ChangePlayerVariables", newPlayer, PhotonNetwork.CurrentRoom.PlayerCount - 1); 
+        // playersPositionIndex++;
         
         if (PhotonNetwork.CurrentRoom.PlayerCount == MaxPlayersPerRoom)
         {
+            Debug.Log("##Photon_Menu - Max players reached: " + MaxPlayersPerRoom + " - Starting the game with " + PhotonNetwork.CurrentRoom.PlayerCount + " players.");
             PhotonNetwork.CurrentRoom.IsOpen = false;
 
             waitingStatusText.text = "Opponent found";
@@ -435,7 +450,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 // remaking the table of playerPosition if the maxPlayers is changed
                 if (MaxPlayersPerRoom != defaultMaxPlayers)
                 {
-                    playersPosition = GeneratePlayerPositions(new int[MaxPlayersPerRoom, 2]);
+                    size = calculateMazeSize();
+                    playersPosition = new int[MaxPlayersPerRoom, 2];
+                    playersPosition = GeneratePlayerPositions(playersPosition);
                 }
                 StartCoroutine(StartTimer(timeToStart));
             }
@@ -446,9 +463,10 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         foreach (Player player in PhotonNetwork.PlayerList)
         {
             if (player.CustomProperties["Index"] == null){
-                this.photonView.RPC("ChangePlayerPosition", player, playersPosition[playersPositionIndex - 1, 0], playersPosition[playersPositionIndex - 1, 1], rotation[(playersPositionIndex - 1) % 4]);
+                this.photonView.RPC("ChangePlayerPosition", player, playersPosition[(int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] - 1, 0], playersPosition[(int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] - 1, 1], rotation[((int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] - 1) % 4]);
             }
-            else{   
+            else{  
+                Debug.Log("Index is :" + player.CustomProperties["Index"].ToString() + ".\n PlayersPosition length is: " + playersPosition.GetLength(0));
                 this.photonView.RPC("ChangePlayerPosition", player, playersPosition[(int)player.CustomProperties["Index"], 0], playersPosition[(int)player.CustomProperties["Index"], 1], rotation[(int)player.CustomProperties["Index"] % 4]);
             }
         }
@@ -501,8 +519,8 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     [PunRPC]
     public void ChangePlayerPosition(int placeX, int placeY, int rotation){
-        StaticData.position = new Vector3(placeX, 0, placeY);
+        StaticData.position = new Vector3(placeX, 0.5f, placeY);
         StaticData.rotation = rotation;
-        StaticData.trophiesInGame = 2 * (int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] + 1;
+        StaticData.trophiesInGame = 2 * (int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] + 1; //#// change it to check from a method so I just have to change the method to change it everywhere
     }
 }

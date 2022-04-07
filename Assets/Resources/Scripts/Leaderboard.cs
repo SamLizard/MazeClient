@@ -19,8 +19,15 @@ public class Leaderboard : MonoBehaviourPunCallbacks
     private GameObject[] textBoxes;
     private GameObject[] PointTextBoxes;
     private int restantTrophies;
+    // make a dictionary with in key: constantIndex; value: playerIndexOfPhotonPlayerList
+    private Dictionary<int, int> constantIndexDictionary = new Dictionary<int, int>();
     void Start()
     {
+        // add all the players to the dictionary
+        for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++)
+        {
+            constantIndexDictionary.Add(i, i);
+        }
         LeaderboardPanel = GameObject.FindWithTag("LeaderboardPanel");
         Spawning = GameObject.FindWithTag("Spawning");
         restantTrophies = StaticData.trophiesInGame;
@@ -68,16 +75,16 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         for (int i = 0; i < numOfPlayers; i++)
         {
             textBoxes[i].GetComponent<Text>().text = PhotonNetwork.PlayerList[i].NickName;
-            textBoxes[i].GetComponent<Text>().color = colorTable[i];
+            textBoxes[i].GetComponent<Text>().color = colorTable[(int)PhotonNetwork.PlayerList[i].CustomProperties["Index"]];
             PointTextBoxes[i].GetComponent<Text>().text = PhotonNetwork.PlayerList[i].CustomProperties["Point"].ToString();
         }
     }
 
     public void UpdateOtherPoints(Player player){
         Debug.Log("Player " + player.NickName + " has changed his points to " + player.CustomProperties["Point"]);
-        if (player.NickName == textBoxes[(int)player.CustomProperties["Index"]].GetComponent<Text>().text) // add something that check if it is not me?
+        if (player.NickName == textBoxes[constantIndexDictionary[(int)player.CustomProperties["Index"]]].GetComponent<Text>().text) // add something that check if it is not me?
         {
-            PointTextBoxes[(int)player.CustomProperties["Index"]].GetComponent<Text>().text = player.CustomProperties["Point"].ToString();
+            PointTextBoxes[constantIndexDictionary[(int)player.CustomProperties["Index"]]].GetComponent<Text>().text = player.CustomProperties["Point"].ToString();
             restantTrophies--;
             Debug.Log("96restantTrophies: " + restantTrophies + "\nplayer.NickName: " + player.NickName);
             CheckGameEnd();
@@ -107,16 +114,22 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         // change room properties variable max players
         // PhotonNetwork.CurrentRoom.MaxPlayers = (byte)PhotonNetwork.PlayerList.Length;
         PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] = PhotonNetwork.PlayerList.Length;
-        if (otherPlayer.NickName == textBoxes[(int)otherPlayer.CustomProperties["Index"]].GetComponent<Text>().text)
+        if (otherPlayer.NickName == textBoxes[constantIndexDictionary[(int)otherPlayer.CustomProperties["Index"]]].GetComponent<Text>().text)
         {
             // go over the player list and change their index in custom properties
-            for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++)
+            for (int i = (int)otherPlayer.CustomProperties["Index"]; i < PhotonNetwork.PlayerList.Length; i++)
             {
                 // putting a new index in the player custom properties
                 // ExitGames.Client.Photon.Hashtable playerCustomProperties = PhotonNetwork.PlayerList[i].CustomProperties;
                 // playerCustomProperties["Index"] = i;
                 // PhotonNetwork.PlayerList[i].SetCustomProperties(playerCustomProperties);
-                PhotonNetwork.PlayerList[i].CustomProperties["Index"] = i;
+                
+                // PhotonNetwork.PlayerList[i].CustomProperties["Index"] = i;
+                constantIndexDictionary[(int)PhotonNetwork.PlayerList[i].CustomProperties["Index"]] = i;
+            }
+            for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++)
+            {
+                Debug.Log("Leaderboard29: " + PhotonNetwork.PlayerList[constantIndexDictionary[i]].CustomProperties["Point"]);
             }
             InstantiateLeaderboard();
             CheckGameEnd();

@@ -48,11 +48,11 @@ public static class StaticData
 
     public static void PutStringInTable(string str, int position) // change position to maxplayerperrooms
     {
-        table[position] = str;
+        table[position - 2] = str;
     }
 
     public static bool IsEmptyAt(int position)
     {
-        return table[position] == "";
+        return table[position - 2] == "";
     }
 }
