@@ -13,7 +13,6 @@ public class TrophyBehavior : MonoBehaviourPun
         {
             alreadyIn = true;
             GameObject.FindWithTag("Spawning").GetComponent<spawning>().AddPointTo(col.gameObject.GetComponent<FIMSpace.Basics.FBasic_FheelekController>().playerIndex);
-            Debug.Log("Player enter the trigger. Index of the player is: " + col.gameObject.GetComponent<FIMSpace.Basics.FBasic_FheelekController>().playerIndex);
             Destroy(gameObject);
         }
     }

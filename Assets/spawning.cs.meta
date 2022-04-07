@@ -3,7 +3,11 @@ guid: 7c6c850f8ed1efc4a99b051c4eaa0ec4
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - data: {instanceID: 0}
+  - playerPrefab: {instanceID: 0}
+  - LeaderboardPanel: {instanceID: 0}
+  - Trophy: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

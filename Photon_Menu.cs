@@ -70,7 +70,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         Debug.Log("Coroutine \"InstantiateData\" started.");
         PlayerPrefs.SetInt("Size", 3);
         PlayerPrefs.SetString("Table", "101111001");
-        // PhotonNetwork.Instantiate("roomData", Vector3.zero, Quaternion.identity);
         yield return new WaitForSeconds(0);
     }
 
