@@ -76,7 +76,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             foreach (KeyValuePair<string, int> pair in list)
             {
                 // add a text box with the name and the points
-                addTextBox(pair.Key.Substring(1), pair.Value, i, false, colorList[pair.Key[0].ToString()], "Finnish_Background", Canvas.transform.Find("Panel_Winning").gameObject);
+                addTextBox(pair.Key.Substring(1), pair.Value, i, false, colorList[pair.Key[0].ToString()], "Finnish_Background", Canvas.transform.Find("Panel_Winning").gameObject, true);
                 i++;
             }
             if ((int)PhotonNetwork.LocalPlayer.CustomProperties["Point"] == (int)list[0].Value) 
@@ -157,9 +157,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             waitingStatusPanel.SetActive(false);
             findOpponentPanel.SetActive(false);
             // create the master panel items
-            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
-            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
-            PlayersJoinedTextBox = addTextBox("Players that alredy joined", PhotonNetwork.CurrentRoom.PlayerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
+            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+            PlayersJoinedTextBox = addTextBox("Players that alredy joined", PhotonNetwork.CurrentRoom.PlayerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
         }
         else if(PhotonNetwork.IsMasterClient){
             PlayersJoinedTextBox.GetComponent<Text>().text = "Players that already joined: " + PhotonNetwork.CurrentRoom.PlayerCount.ToString();
@@ -258,16 +258,17 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             
             masterPanel.SetActive(true);
             waitingStatusPanel.SetActive(false);
-            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
-            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
-            PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel);
+            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+            PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
         }
     }
 
-    public GameObject addTextBox(string textToDisplay, int variableToShow, int index, bool allowInput, Color color, string parent, GameObject panel) // add floats: minX, minY, maxX, maxY, between
+    public GameObject addTextBox(string textToDisplay, int variableToShow, int index, bool allowInput, Color color, string parent, GameObject panel, bool enableOutline) // add floats: minX, minY, maxX, maxY, between
     {
+        enableOutline = enableOutline && color != Color.black;
         if (allowInput){
-            return AddTextBoxAndInput(textToDisplay, variableToShow, index, color, parent, panel);
+            return AddTextBoxAndInput(textToDisplay, variableToShow, index, color, parent, panel, enableOutline);
         }
         // add a textBox with a parent with the name "RoomInformations"
         GameObject textBox = Instantiate(textBoxPrefab, Vector3.zero, Quaternion.identity);
@@ -286,6 +287,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         textBox.GetComponent<RectTransform>().anchoredPosition3D = Vector3.zero;
         // put his color to dark blue
         textBox.GetComponent<Text>().color = color;
+        textBox.GetComponent<Outline>().enabled = enableOutline;
         // activate bestFit
         textBox.GetComponent<Text>().resizeTextForBestFit = true;
         textBox.GetComponent<Text>().resizeTextMinSize = 5;
@@ -293,7 +295,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         return textBox;
     }
 
-    public GameObject AddTextBoxAndInput(string textToDisplay, int variableToShow, int index, Color color, string parentStr, GameObject panel){ // parentStr is the parent of parent
+    public GameObject AddTextBoxAndInput(string textToDisplay, int variableToShow, int index, Color color, string parentStr, GameObject panel, bool enableOutline){ // parentStr is the parent of parent
         GameObject parent = Instantiate(TextBoxAndField, Vector3.zero, Quaternion.identity);
         // change the name of parent to textToDisplay
         parent.name = textToDisplay;
@@ -319,6 +321,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
         // set the text of the textBox
         textBox.GetComponent<Text>().text = textToDisplay + ": " + variableToShow;
+        textBox.GetComponent<Outline>().enabled = enableOutline;
 
         // set the text of the inputField
         inputField.GetComponent<InputField>().text = variableToShow.ToString();
@@ -479,6 +482,11 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     {
         int restantSeconds = timeLeft(timeToStart);
         waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
+        if (PhotonNetwork.IsMasterClient){
+            waitingStatusPanel.SetActive(true);
+            waitingStatusPanel.GetComponent<Image>().color = new Color(1, 1, 1, 0);
+            waitingStatusText.GetComponent<RectTransform>().anchoredPosition = new Vector2(200, 0);
+        }
         for (int i = 0; i < restantSeconds; i++)
         {
             yield return new WaitUntil(() => (timeLeft(timeToStart) < restantSeconds));
