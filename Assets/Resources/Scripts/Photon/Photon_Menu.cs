@@ -32,7 +32,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         new Tuple<int, int>(1, -1)
     };
     private int[] rotation = new int[4] {45, 225, 315, 135};
-    private string[] colorName = new string[4] {"G", "Y", "R", "P"};
+    private string[] colorName = new string[5] {"G", "Y", "R", "P", "W"};
     private readonly int square_size = 10;
     public int size;
 
@@ -82,10 +82,12 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             if ((int)PhotonNetwork.LocalPlayer.CustomProperties["Point"] == (int)list[0].Value) 
             {
                 Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().text = "You won";
+                Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().color = Color.green;
             }
             else
             {
                 Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().text = "Game Over";
+                Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().color = Color.red;
             }
             StaticData.CleanList();
             PhotonNetwork.LeaveRoom();
@@ -163,7 +165,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             PlayersJoinedTextBox.GetComponent<Text>().text = "Players that already joined: " + PhotonNetwork.CurrentRoom.PlayerCount.ToString();
         }
         else{
-            waitingStatusText.text = "Waiting for opponents.\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + MaxPlayersPerRoom + " players.";
+            waitingStatusText.text = "Waiting for opponents.\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers + " players.";
         }
     }
 
@@ -238,7 +240,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         }
         if (!PhotonNetwork.IsMasterClient)
         {
-            waitingStatusText.text = "Waiting for Players\n" + playerCount + " / " + PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"];
+            waitingStatusText.text = "Waiting for Players\n" + playerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
         }
         if (PhotonNetwork.IsMasterClient)
         {
@@ -415,6 +417,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     {
         if (!PhotonNetwork.IsMasterClient){
             Debug.Log("A Player entered the room, but I am not the master");
+            waitingStatusText.text = "Waiting for Players\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
             return;
         }
         // change the text in playersJoinedTextBox

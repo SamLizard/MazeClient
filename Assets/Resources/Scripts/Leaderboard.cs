@@ -14,7 +14,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
     public float betweenTwoTextBoxes = 0.02f; 
     private const float anchorPanelDefault = 0.176f;
     public float anchorPanel;
-    private Color[] colorTable = new Color[5] { new Color(0, 1, 0, 1), new Color(1, 0.92f, 0.016f, 1), new Color(1, 0, 0, 1), new Color(1, 0, 1, 1), new Color(0, 0, 0, 0) };
+    private Color[] colorTable = new Color[5] { new Color(0, 1, 0, 1), new Color(1, 0.92f, 0.016f, 1), new Color(1, 0, 0, 1), new Color(1, 0, 1, 1), new Color(1, 1, 1, 1) };
     [SerializeField] GameObject textBoxePrefab;
     private GameObject[] textBoxes;
     private GameObject[] PointTextBoxes;
