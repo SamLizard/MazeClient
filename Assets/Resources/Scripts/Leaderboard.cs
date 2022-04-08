@@ -37,7 +37,7 @@ public class Leaderboard : MonoBehaviourPunCallbacks
     }
 
     public void InstantiateLeaderboard(){
-        int numOfPlayers = (int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"];
+        int numOfPlayers = (int)PhotonNetwork.CurrentRoom.MaxPlayers;
         anchorPanel = anchorPanelDefault * numOfPlayers / 2;
         
         LeaderboardPanel.GetComponent<RectTransform>().anchorMin = new Vector2(0.02f, 0.97f - anchorPanel);
@@ -75,7 +75,13 @@ public class Leaderboard : MonoBehaviourPunCallbacks
         for (int i = 0; i < numOfPlayers; i++)
         {
             textBoxes[i].GetComponent<Text>().text = PhotonNetwork.PlayerList[i].NickName;
-            textBoxes[i].GetComponent<Text>().color = colorTable[(int)PhotonNetwork.PlayerList[i].CustomProperties["Index"]];
+            if ((PhotonNetwork.PlayerList[i].CustomProperties["Index"] == null || PhotonNetwork.PlayerList[i].CustomProperties["Index"] == "") && i == numOfPlayers - 1){ // that fixes the bug when the custom properties didnt already reached me due to bad internet
+                textBoxes[i].GetComponent<Text>().color = colorTable[i];
+            }
+            else{
+                Debug.Log("SetPlayerNamesAndPoints. Player: " + PhotonNetwork.PlayerList[i].NickName + " has index: " + PhotonNetwork.PlayerList[i].CustomProperties["Index"]);
+                textBoxes[i].GetComponent<Text>().color = colorTable[(int)PhotonNetwork.PlayerList[i].CustomProperties["Index"]];
+            }
             PointTextBoxes[i].GetComponent<Text>().text = PhotonNetwork.PlayerList[i].CustomProperties["Point"].ToString();
         }
     }
@@ -112,8 +118,8 @@ public class Leaderboard : MonoBehaviourPunCallbacks
             return;
         }
         // change room properties variable max players
-        // PhotonNetwork.CurrentRoom.MaxPlayers = (byte)PhotonNetwork.PlayerList.Length;
-        PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] = PhotonNetwork.PlayerList.Length;
+        PhotonNetwork.CurrentRoom.MaxPlayers = (byte)PhotonNetwork.PlayerList.Length;
+        // PhotonNetwork.CurrentRoom.MaxPlayers = PhotonNetwork.PlayerList.Length;
         if (otherPlayer.NickName == textBoxes[constantIndexDictionary[(int)otherPlayer.CustomProperties["Index"]]].GetComponent<Text>().text)
         {
             // go over the player list and change their index in custom properties

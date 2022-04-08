@@ -19,10 +19,11 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     [SerializeField] private GameObject Canvas = null;
     public GameObject PlayersJoinedTextBox = null;
     private bool isConnecting = false;
-    private const string GameVersion = "0.1";
+    private const string GameVersion = "0.2";
     public int MaxPlayersPerRoom = 2;
     private const int defaultMaxPlayers = 2;
     private int[,] playersPosition;
+    private readonly double minTime = 4;
     // private int playersPositionIndex = 0;
     private Dictionary<string, Color> colorList = new Dictionary<string, Color>() { { "G", Color.green }, { "R", Color.red }, { "P", new Color(1, 0, 1, 1) }, { "Y", Color.yellow }, { "B", Color.black}, { "W", Color.white} };
     private readonly Tuple<int, int>[] positions = new Tuple<int, int>[4] {
@@ -116,7 +117,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         }
         else
         {
-            PhotonNetwork.GameVersion = GameVersion;
+            PhotonNetwork.PhotonServerSettings.AppSettings.AppVersion = GameVersion;
             PhotonNetwork.ConnectUsingSettings();
         }
     }
@@ -149,7 +150,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             Debug.Log($"{otherPlayer.NickName} is inactive");
         }
         // was otherplayer the master? use custom property
-        if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"]){
+        if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"] && !Canvas.transform.Find("Panel_Winning").gameObject.active){
             Debug.Log(otherPlayer.NickName + " is the master: " + otherPlayer.CustomProperties["Master"]);
             // activate the master panel
             masterPanel.SetActive(true);
@@ -242,7 +243,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         {
             waitingStatusText.text = "Waiting for Players\n" + playerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
         }
-        if (PhotonNetwork.IsMasterClient)
+        if (PhotonNetwork.IsMasterClient) //#// change it to else
         {
             Debug.Log("I am the master");
             Debug.Log("Starting GenerateMaze Coroutine.");
@@ -252,10 +253,10 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             playersPosition = GeneratePlayerPositions(playersPosition);
             StaticData.colorName = colorName[0]; 
             // add in roomoptions customproperties the maxplayersperroom using setCustomproperties
-            PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
-            PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[0] }, { "Index", 0}, { "Point", 0 }, {"Master", true} });
+            //#// I dont think it is needed: PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
+            // PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[0] }, { "Index", 0}, { "Point", 0 }, {"Master", true} });
+            //#// is last line necessary?
             // playersPositionIndex = 1;
-            
             masterPanel.SetActive(true);
             waitingStatusPanel.SetActive(false);
             GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
@@ -343,7 +344,8 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             if (playersInInput >= playerCount && playersInInput <= 5 && playersInInput >= 2) {
                 MaxPlayersPerRoom = playersInInput;
                 // change the maxplayersperroom in the room properties
-                PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
+                //#// I dont think it is needed: PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
+                //#// stop using roomproperties for that. there is CurrentRoom.maxPlayers.
                 // change the text of textbox that contain the number of trophies
                 masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + (2 * MaxPlayersPerRoom + 1); //#// put it in a method
                 // say to photon that it can let players enter until the new maxplayers is reached
@@ -379,7 +381,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
                     if (PhotonNetwork.IsMasterClient) // it has to be alredy the master
                     {
-                        double timeOfTimer = 3; //in seconds
+                        double timeOfTimer = minTime; //in seconds
                         if (StaticData.IsEmptyAt(MaxPlayersPerRoom))
                         {
                             timeOfTimer += 2;
@@ -426,9 +428,10 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         // change the text in playersJoinedTextBox
         PlayersJoinedTextBox.GetComponent<Text>().text = "Players that alredy joined: " + PhotonNetwork.CurrentRoom.PlayerCount;
         // add custom properties to the player
-        newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[PhotonNetwork.CurrentRoom.PlayerCount - 1] }, { "Index", PhotonNetwork.CurrentRoom.PlayerCount - 1}, { "Point", 0 }, {"Master", newPlayer.IsMasterClient} });
-        Debug.Log("Photon_Menu - Giving index:" + ((int)PhotonNetwork.CurrentRoom.PlayerCount - 1).ToString() + " to " + newPlayer.NickName);
-        this.photonView.RPC("ChangePlayerVariables", newPlayer, PhotonNetwork.CurrentRoom.PlayerCount - 1); 
+        // newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[PhotonNetwork.CurrentRoom.PlayerCount - 1] }, { "Index", PhotonNetwork.CurrentRoom.PlayerCount - 1}, { "Point", 0 }, {"Master", newPlayer.IsMasterClient} });
+        //#// is last line necessary?
+        // Debug.Log("Photon_Menu - Giving index:" + ((int)PhotonNetwork.CurrentRoom.PlayerCount - 1).ToString() + " to " + newPlayer.NickName);
+        // this.photonView.RPC("ChangePlayerVariables", newPlayer, PhotonNetwork.CurrentRoom.PlayerCount - 1); it will be called ofter the last rpc that changes positions
         // playersPositionIndex++;
         
         if (PhotonNetwork.CurrentRoom.PlayerCount == MaxPlayersPerRoom)
@@ -441,7 +444,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
             if (PhotonNetwork.IsMasterClient)
             {
-                double timeOfTimer = 3; //in seconds
+                double timeOfTimer = minTime; //in seconds
                 if (StaticData.IsEmptyAt(MaxPlayersPerRoom))
                 {
                     timeOfTimer += 2;
@@ -466,28 +469,27 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     }
 
     public void sendRPCtoClients(){
+        int i = 0; // the index given to the players
         foreach (Player player in PhotonNetwork.PlayerList)
         {
-            if (player.CustomProperties["Index"] == null){
-                this.photonView.RPC("ChangePlayerPosition", player, playersPosition[(int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] - 1, 0], playersPosition[(int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] - 1, 1], rotation[((int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] - 1) % 4]);
-            }
-            else{  
-                Debug.Log("Index is :" + player.CustomProperties["Index"].ToString() + ".\n PlayersPosition length is: " + playersPosition.GetLength(0));
-                this.photonView.RPC("ChangePlayerPosition", player, playersPosition[(int)player.CustomProperties["Index"], 0], playersPosition[(int)player.CustomProperties["Index"], 1], rotation[(int)player.CustomProperties["Index"] % 4]);
-            }
+            player.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[i] }, { "Index", i }, { "Point", 0 }, {"Master", player.IsMasterClient} });
+            this.photonView.RPC("ChangePlayerPosition", player, playersPosition[i, 0], playersPosition[i, 1], rotation[i % 4], i);
+            i++;
         }
     }
 
     IEnumerator StartTimer(DateTime timeToStart)
     {
         int restantSeconds = timeLeft(timeToStart);
+        int secondsToWait = restantSeconds;
         waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
         if (PhotonNetwork.IsMasterClient){
             waitingStatusPanel.SetActive(true);
             waitingStatusPanel.GetComponent<Image>().color = new Color(1, 1, 1, 0);
             waitingStatusText.GetComponent<RectTransform>().anchoredPosition = new Vector2(200, 0);
         }
-        for (int i = 0; i < restantSeconds; i++)
+        bool rpcSent = false;
+        for (int i = 0; i < secondsToWait; i++)
         {
             yield return new WaitUntil(() => (timeLeft(timeToStart) < restantSeconds));
             restantSeconds = timeLeft(timeToStart);
@@ -498,7 +500,8 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 waitingStatusText.text = "Game Start in 0 seconds";
                 break;
             }
-            if (restantSeconds <= 2 && PhotonNetwork.IsMasterClient){
+            if ((restantSeconds <= (minTime - 3) || (restantSeconds <= 2)) && PhotonNetwork.IsMasterClient && !rpcSent){ //  && PhotonNetwork.PlayerList[0].CustomProperties["Index"] != null
+                rpcSent = true;
                 sendRPCtoClients();
             }
         }
@@ -517,21 +520,15 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    public void ChangePlayerVariables(int index)  
-    {
-        Debug.Log("Photon_Menu - Index given is: " + index);
-	    if (index <= 4){
+    public void ChangePlayerPosition(int placeX, int placeY, int rotation, int index){
+        StaticData.position = new Vector3(placeX, 0.5f, placeY);
+        StaticData.rotation = rotation;
+        StaticData.trophiesInGame = 2 * (int)PhotonNetwork.CurrentRoom.MaxPlayers + 1; //#// change it to check from a method so I just have to change the method to change it everywhere
+        if (index <= 4){
 	        StaticData.colorName = colorName[index];
 	    }
 	    else {
 	        StaticData.colorName = "W";
 	    }
-    }
-
-    [PunRPC]
-    public void ChangePlayerPosition(int placeX, int placeY, int rotation){
-        StaticData.position = new Vector3(placeX, 0.5f, placeY);
-        StaticData.rotation = rotation;
-        StaticData.trophiesInGame = 2 * (int)PhotonNetwork.CurrentRoom.CustomProperties["MaxPlayersPerRoom"] + 1; //#// change it to check from a method so I just have to change the method to change it everywhere
     }
 }
