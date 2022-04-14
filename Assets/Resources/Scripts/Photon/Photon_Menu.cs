@@ -20,11 +20,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     public GameObject PlayersJoinedTextBox = null;
     private bool isConnecting = false;
     private const string GameVersion = "0.2";
-    public int MaxPlayersPerRoom = 2;
     private const int defaultMaxPlayers = 2;
     private int[,] playersPosition;
     private readonly double minTime = 4;
-    // private int playersPositionIndex = 0;
     private Dictionary<string, Color> colorList = new Dictionary<string, Color>() { { "G", Color.green }, { "R", Color.red }, { "P", new Color(1, 0, 1, 1) }, { "Y", Color.yellow }, { "B", Color.black}, { "W", Color.white} };
     private readonly Tuple<int, int>[] positions = new Tuple<int, int>[4] {
         new Tuple<int, int>(1, 1),
@@ -70,15 +68,11 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             findOpponentPanel.SetActive(false);
             Canvas.transform.Find("Image").gameObject.SetActive(false);
             Canvas.transform.Find("Panel_NameInput").gameObject.SetActive(false);
-            Canvas.transform.Find("Panel_Winning").gameObject.SetActive(true);
+            Canvas.transform.Find("Panel_Winning").gameObject.SetActive(true);            
             List<KeyValuePair<string, int>> list = new List<KeyValuePair<string, int>>(StaticData.Classement());
-            // add a textBox for each list element
-            int i = 0;
-            foreach (KeyValuePair<string, int> pair in list)
+            for (int i = 0; i < list.Count; i++)
             {
-                // add a text box with the name and the points
-                addTextBox(pair.Key.Substring(1), pair.Value, i, false, colorList[pair.Key[0].ToString()], "Finnish_Background", Canvas.transform.Find("Panel_Winning").gameObject, true);
-                i++;
+                addTextBox(list[i].Key.Substring(2), list[i].Value, i, false, colorList[list[i].Key[0].ToString()], "Finnish_Background", Canvas.transform.Find("Panel_Winning").gameObject, true);
             }
             if ((int)PhotonNetwork.LocalPlayer.CustomProperties["Point"] == (int)list[0].Value) 
             {
@@ -90,7 +84,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().text = "Game Over";
                 Canvas.transform.Find("Panel_Winning").gameObject.transform.Find("Status_Winning_Text").gameObject.GetComponent<Text>().color = Color.red;
             }
-            StaticData.CleanList();
+            StaticData.playerPoints.Clear();
             PhotonNetwork.LeaveRoom();
         }
     }
@@ -105,12 +99,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     public void FindOpponent()
     {
         isConnecting = true;
-
         findOpponentPanel.SetActive(false);
         waitingStatusPanel.SetActive(true);
-
         waitingStatusText.text = "Searching...";
-
         if (PhotonNetwork.IsConnected)
         {
             PhotonNetwork.JoinRandomRoom();
@@ -129,85 +120,71 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     public override void OnConnectedToMaster()
     {
-        Debug.Log("Connected to Master");
         if (isConnecting)
-        {
             PhotonNetwork.JoinRandomRoom();
-        }
     }
 
     public override void OnDisconnected(Photon.Realtime.DisconnectCause cause)
     {
         waitingStatusPanel.SetActive(false);
         findOpponentPanel.SetActive(true);
-        // send message to the other players that you disconnected
-        Debug.Log($"Disctonnected due to: {cause}");
     }
 
     public override void OnPlayerLeftRoom(Player otherPlayer){
-        Debug.Log($"{otherPlayer.NickName} left the room");
-        if (otherPlayer.IsInactive){
-            Debug.Log($"{otherPlayer.NickName} is inactive");
-        }
-        // was otherplayer the master? use custom property
         if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"] && !Canvas.transform.Find("Panel_Winning").gameObject.active){
-            Debug.Log(otherPlayer.NickName + " is the master: " + otherPlayer.CustomProperties["Master"]);
-            // activate the master panel
-            masterPanel.SetActive(true);
-            // desactivate the panel waitingStatusPanel and the findOpponentPanel
-            waitingStatusPanel.SetActive(false);
             findOpponentPanel.SetActive(false);
-            // create the master panel items
-            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
-            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
-            PlayersJoinedTextBox = addTextBox("Players that alredy joined", PhotonNetwork.CurrentRoom.PlayerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+            ActivateMasterMode();
         }
-        else if(PhotonNetwork.IsMasterClient){
+        else if(PhotonNetwork.IsMasterClient && Canvas.transform.Find("masterPanel").gameObject.active){
             PlayersJoinedTextBox.GetComponent<Text>().text = "Players that already joined: " + PhotonNetwork.CurrentRoom.PlayerCount.ToString();
         }
-        else{
+        else if (!PhotonNetwork.IsMasterClient){ 
             waitingStatusText.text = "Waiting for opponents.\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers + " players.";
         }
     }
 
+    public void ActivateMasterMode(){
+        masterPanel.SetActive(true);
+        waitingStatusPanel.SetActive(false);
+        PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { {"Master", true} });
+        StartCoroutine(GenerateMaze());
+        playersPosition = new int[PhotonNetwork.CurrentRoom.MaxPlayers, 2];
+        playersPosition = GeneratePlayerPositions(playersPosition);
+        CreateMasterBoxes(PhotonNetwork.CurrentRoom.PlayerCount);
+    }
+
     public int calculateMazeSize()
     {
-        Debug.Log("172CalculateMazeSize. MaxPlayersPerRoom is: " + MaxPlayersPerRoom + ".");
-        return 12 * MaxPlayersPerRoom + 1;
+        return 12 * PhotonNetwork.CurrentRoom.MaxPlayers + 1;
     }
 
     public override void OnJoinRandomFailed(short returnCode, string message)
     {
-        Debug.Log("No clients are waiting  for an opponent, creating a new room\n" + message);
-
-        PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = (byte)MaxPlayersPerRoom });
+        PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = (byte)defaultMaxPlayers });
     }
 
     IEnumerator GenerateMaze()
     {
         if (!PhotonNetwork.IsMasterClient)
         {
-            Debug.Log("You are not the Master");
             yield break;
         }
-        Debug.Log("Master generate maze coroutine started");
         size = calculateMazeSize();
         StaticData.mazeSize = size;
-        Static_Methods.size = size;
-        int[,] table = Static_Methods.CreateMazeList();
+        int[,] table = Static_Methods.CreateMazeList(size);
         string tableString = Static_Methods.TableToString(table);
-        Debug.Log("Table already generated. \nSize:" + size + "\n" + tableString);
-        StaticData.PutStringInTable(tableString, MaxPlayersPerRoom);
+        StaticData.PutStringInTable(tableString, PhotonNetwork.CurrentRoom.MaxPlayers);
     }
 
     private int[,] GeneratePlayerPositions(int[,] playersPositionToActualize){
+        size = calculateMazeSize();
         if (!PhotonNetwork.IsMasterClient){
             return playersPositionToActualize;
         }
         int startingPosition = ((size - (size % 2)) / 2) * -square_size;
         int placeX = startingPosition;
         int placeY = startingPosition;
-        for (int i = 0; i < MaxPlayersPerRoom; i++)
+        for (int i = 0; i < PhotonNetwork.CurrentRoom.MaxPlayers; i++)
         {
             if (i < 4){
                 (int x, int y) = positions[i];
@@ -230,9 +207,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
         int playerCount = PhotonNetwork.CurrentRoom.PlayerCount;
 
-        if (playerCount != MaxPlayersPerRoom)
+        if (playerCount != PhotonNetwork.CurrentRoom.MaxPlayers)
         {
-            waitingStatusText.text = "Waiting for opponents. " + playerCount + " / " + MaxPlayersPerRoom + " players.";
+            waitingStatusText.text = "Waiting for opponents. " + playerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers + " players.";
         }
         else
         {
@@ -243,98 +220,69 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         {
             waitingStatusText.text = "Waiting for Players\n" + playerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
         }
-        if (PhotonNetwork.IsMasterClient) //#// change it to else
+        else
         {
-            Debug.Log("I am the master");
-            Debug.Log("Starting GenerateMaze Coroutine.");
-            StartCoroutine(GenerateMaze());
-            size = calculateMazeSize();
-            playersPosition = new int[MaxPlayersPerRoom, 2];
-            playersPosition = GeneratePlayerPositions(playersPosition);
-            StaticData.colorName = colorName[0]; 
-            // add in roomoptions customproperties the maxplayersperroom using setCustomproperties
-            //#// I dont think it is needed: PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
-            // PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[0] }, { "Index", 0}, { "Point", 0 }, {"Master", true} });
-            //#// is last line necessary?
-            // playersPositionIndex = 1;
-            masterPanel.SetActive(true);
-            waitingStatusPanel.SetActive(false);
-            GameObject maxPlayersTextBox = addTextBox("Max Players", MaxPlayersPerRoom, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
-            GameObject trophiesTextBox = addTextBox("Number of trophies", 2 * MaxPlayersPerRoom + 1, 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
-            PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+            ActivateMasterMode();
         }
     }
 
-    public GameObject addTextBox(string textToDisplay, int variableToShow, int index, bool allowInput, Color color, string parent, GameObject panel, bool enableOutline) // add floats: minX, minY, maxX, maxY, between
+    public void CreateMasterBoxes(int playerCount){
+        GameObject maxPlayersTextBox = addTextBox("Max Players", PhotonNetwork.CurrentRoom.MaxPlayers, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+        GameObject trophiesTextBox = addTextBox("Number of trophies", CalculateTrophies(), 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+        PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+    }
+
+    public GameObject addTextBox(string textToDisplay, int variableToShow, int index, bool allowInput, Color color, string parent, GameObject panel, bool enableOutline)
     {
         enableOutline = enableOutline && color != Color.black;
         if (allowInput){
             return AddTextBoxAndInput(textToDisplay, variableToShow, index, color, parent, panel, enableOutline);
         }
-        // add a textBox with a parent with the name "RoomInformations"
         GameObject textBox = Instantiate(textBoxPrefab, Vector3.zero, Quaternion.identity);
-        // put his parent to the gameObject with the name "RoomInformations" that is a child of masterpanel
         textBox.transform.SetParent(panel.transform.Find(parent));
-        // change the name of the textBox
-        textBox.name = textToDisplay;
-        // textBox.transform.SetParent(masterPanel.transform.findinchild("RoomInformations"));
-        textBox.GetComponent<Text>().text = textToDisplay + ": " + variableToShow;
-        // set anchors
-        textBox.GetComponent<RectTransform>().anchorMin = new Vector2(0.2f, 0.67f - (0.13f * index));
-        textBox.GetComponent<RectTransform>().anchorMax = new Vector2(0.8f, 0.75f - (0.13f * index));
-        // position to zero
-        textBox.GetComponent<RectTransform>().localPosition = new Vector3(0, 0, 0);
-        textBox.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 0f);    
-        textBox.GetComponent<RectTransform>().anchoredPosition3D = Vector3.zero;
-        // put his color to dark blue
-        textBox.GetComponent<Text>().color = color;
-        textBox.GetComponent<Outline>().enabled = enableOutline;
-        // activate bestFit
-        textBox.GetComponent<Text>().resizeTextForBestFit = true;
-        textBox.GetComponent<Text>().resizeTextMinSize = 5;
-        textBox.GetComponent<Text>().resizeTextMaxSize = 200;
+        
+        PlaceBox(textBox, index, textToDisplay);
+        TextBoxParameters(textBox, textToDisplay, variableToShow, color, enableOutline);
         return textBox;
     }
 
-    public GameObject AddTextBoxAndInput(string textToDisplay, int variableToShow, int index, Color color, string parentStr, GameObject panel, bool enableOutline){ // parentStr is the parent of parent
+    public GameObject AddTextBoxAndInput(string textToDisplay, int variableToShow, int index, Color color, string parentStr, GameObject panel, bool enableOutline){
         GameObject parent = Instantiate(TextBoxAndField, Vector3.zero, Quaternion.identity);
-        // change the name of parent to textToDisplay
-        parent.name = textToDisplay;
         parent.transform.SetParent(panel.transform.Find(parentStr));
-
+        
         GameObject textBox = parent.transform.Find("TextBox").gameObject;
         GameObject inputField = parent.transform.Find("InputField").gameObject;
-
-        parent.GetComponent<RectTransform>().anchorMin = new Vector2(0.2f, 0.67f - (0.13f * index));
-        parent.GetComponent<RectTransform>().anchorMax = new Vector2(0.8f, 0.75f - (0.13f * index));
-        parent.GetComponent<RectTransform>().localPosition = new Vector3(0, 0, 0);
-        parent.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 0f);    
-        parent.GetComponent<RectTransform>().anchoredPosition3D = Vector3.zero;
-
-        // set the color of the textBox and inputField to dark blue
-        textBox.GetComponent<Text>().color = color;
-        // set the color of the inputfield child named text to dark blue
+        
+        PlaceBox(parent, index, textToDisplay);
+        TextBoxParameters(textBox, textToDisplay, variableToShow, color, enableOutline);
+        
         inputField.transform.Find("Text").GetComponent<Text>().color = color;
-        // activate bestFit of the textBox
-        textBox.GetComponent<Text>().resizeTextForBestFit = true;
-        textBox.GetComponent<Text>().resizeTextMinSize = 5;
-        textBox.GetComponent<Text>().resizeTextMaxSize = 200;
-
-        // set the text of the textBox
-        textBox.GetComponent<Text>().text = textToDisplay + ": " + variableToShow;
-        textBox.GetComponent<Outline>().enabled = enableOutline;
-
-        // set the text of the inputField
         inputField.GetComponent<InputField>().text = variableToShow.ToString();
         // activate the inputfield on value changed, chose the function oninputChanged that is in the script Photon_Menu in the Canvas_Menu in scene
         inputField.GetComponent<InputField>().onValueChanged.AddListener(delegate { onInputChanged(); });
-
         return parent;
+    }
+
+    public void PlaceBox(GameObject Box, int index, string textToDisplay){ // and rename the box
+        Box.GetComponent<RectTransform>().anchorMin = new Vector2(0.2f, 0.67f - (0.13f * index));
+        Box.GetComponent<RectTransform>().anchorMax = new Vector2(0.8f, 0.75f - (0.13f * index));
+        Box.GetComponent<RectTransform>().localPosition = new Vector3(0, 0, 0);
+        Box.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 0f);    
+        Box.GetComponent<RectTransform>().anchoredPosition3D = Vector3.zero;
+        Box.name = textToDisplay;
+    }
+
+    public void TextBoxParameters(GameObject Box, string textToDisplay, int variableToShow, Color color, bool enableOutline){
+        Box.GetComponent<Text>().text = textToDisplay + ": " + variableToShow;
+        Box.GetComponent<Text>().color = color;
+        Box.GetComponent<Outline>().enabled = enableOutline;
+        Box.GetComponent<Text>().resizeTextForBestFit = true;
+        Box.GetComponent<Text>().resizeTextMinSize = 5;
+        Box.GetComponent<Text>().resizeTextMaxSize = 200;
     }
 
     public void onInputChanged(){
         GameObject inputFieldMaxPlayers = masterPanel.transform.Find("RoomInformations").Find("Max Players").Find("InputField").GetComponent<InputField>().gameObject;
-        Debug.Log("Input of Max Players changed to: " + inputFieldMaxPlayers.GetComponent<InputField>().text);
         CheckChangingMaxPlayers(inputFieldMaxPlayers);
     }
 
@@ -342,30 +290,19 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         if (int.TryParse(inputFieldMaxPlayers.GetComponent<InputField>().text, out int playersInInput)){
             int playerCount = PhotonNetwork.CurrentRoom.PlayerCount;
             if (playersInInput >= playerCount && playersInInput <= 5 && playersInInput >= 2) {
-                MaxPlayersPerRoom = playersInInput;
-                // change the maxplayersperroom in the room properties
-                //#// I dont think it is needed: PhotonNetwork.CurrentRoom.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "MaxPlayersPerRoom", MaxPlayersPerRoom } });
-                //#// stop using roomproperties for that. there is CurrentRoom.maxPlayers.
-                // change the text of textbox that contain the number of trophies
-                masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + (2 * MaxPlayersPerRoom + 1); //#// put it in a method
-                // say to photon that it can let players enter until the new maxplayers is reached
-                PhotonNetwork.CurrentRoom.MaxPlayers = (byte)MaxPlayersPerRoom;
-                // actualize the text of the textBox
-                masterPanel.transform.Find("RoomInformations").Find("Max Players").Find("TextBox").GetComponent<Text>().text = "Max Players: " + MaxPlayersPerRoom;
-                // if is equal to the actual number of players that are connected, start the game
-                // string nameOfTable = "Table" + MaxPlayersPerRoom.ToString();
+                PhotonNetwork.CurrentRoom.MaxPlayers = (byte)playersInInput;
+                masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + CalculateTrophies().ToString();
+                masterPanel.transform.Find("RoomInformations").Find("Max Players").Find("TextBox").GetComponent<Text>().text = "Max Players: " + playersInInput;
                 
-                size = calculateMazeSize();
-                playersPosition = new int[MaxPlayersPerRoom, 2];
+                playersPosition = new int[playersInInput, 2];
                 playersPosition = GeneratePlayerPositions(playersPosition);
                 
-                if (StaticData.IsEmptyAt(MaxPlayersPerRoom) && MaxPlayersPerRoom != defaultMaxPlayers) { 
-                    Debug.Log("Generating a Maze when the max players equals: " + MaxPlayersPerRoom);
+                if (StaticData.IsEmptyAt(playersInInput)) {
                     StartCoroutine(GenerateMaze());
                 }
                 else
                 {
-                    if (!StaticData.IsEmptyAt(MaxPlayersPerRoom)) //  && MaxPlayersPerRoom == defaultMaxPlayers
+                    if (!StaticData.IsEmptyAt(playersInInput)) 
                     {
                         size = calculateMazeSize();
                         Static_Methods.size = size;
@@ -373,28 +310,16 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                     }
                 }
                 if (playersInInput == playerCount){
-                    Debug.Log("##Closing game. Max players equals: " + MaxPlayersPerRoom + " and player count equals: " + playerCount);
                     PhotonNetwork.CurrentRoom.IsOpen = false;
-
                     waitingStatusText.text = "Opponent found";
-                    Debug.Log("Mach is ready to begin");
-
-                    if (PhotonNetwork.IsMasterClient) // it has to be alredy the master
+                    double timeOfTimer = minTime;
+                    if (StaticData.IsEmptyAt(playersInInput))
                     {
-                        double timeOfTimer = minTime; //in seconds
-                        if (StaticData.IsEmptyAt(MaxPlayersPerRoom))
-                        {
-                            timeOfTimer += 2;
-                        }
-                        DateTime timeToStart = CalculateStartingTime(timeOfTimer);
-                        // calculate the time (take the local seconds, add the timeOfTimer, around it to the highest)
-                        Debug.Log("Master - TimeToStart: " + timeToStart.ToString("dd/MM/yyyy HH:mm:ss"));
-
-                        // pun rpc everyone else
-                        this.photonView.RPC("StartClientTimer", RpcTarget.Others, timeToStart.ToString("dd/MM/yyyy HH:mm:ss"));
-
-                        StartCoroutine(StartTimer(timeToStart));
+                        timeOfTimer += 2;
                     }
+                    DateTime timeToStart = CalculateStartingTime(timeOfTimer);
+                    this.photonView.RPC("StartClientTimer", RpcTarget.Others, timeToStart.ToString("dd/MM/yyyy HH:mm:ss"));
+                    StartCoroutine(StartTimer(timeToStart));
                 }
             }
         }
@@ -421,59 +346,36 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     public override void OnPlayerEnteredRoom(Player newPlayer)
     {
         if (!PhotonNetwork.IsMasterClient){
-            Debug.Log("A Player entered the room, but I am not the master");
             waitingStatusText.text = "Waiting for Players\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
             return;
         }
-        // change the text in playersJoinedTextBox
         PlayersJoinedTextBox.GetComponent<Text>().text = "Players that alredy joined: " + PhotonNetwork.CurrentRoom.PlayerCount;
-        // add custom properties to the player
-        // newPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[PhotonNetwork.CurrentRoom.PlayerCount - 1] }, { "Index", PhotonNetwork.CurrentRoom.PlayerCount - 1}, { "Point", 0 }, {"Master", newPlayer.IsMasterClient} });
-        //#// is last line necessary?
-        // Debug.Log("Photon_Menu - Giving index:" + ((int)PhotonNetwork.CurrentRoom.PlayerCount - 1).ToString() + " to " + newPlayer.NickName);
-        // this.photonView.RPC("ChangePlayerVariables", newPlayer, PhotonNetwork.CurrentRoom.PlayerCount - 1); it will be called ofter the last rpc that changes positions
-        // playersPositionIndex++;
-        
-        if (PhotonNetwork.CurrentRoom.PlayerCount == MaxPlayersPerRoom)
+        if (PhotonNetwork.CurrentRoom.PlayerCount == PhotonNetwork.CurrentRoom.MaxPlayers)
         {
-            Debug.Log("##Photon_Menu - Max players reached: " + MaxPlayersPerRoom + " - Starting the game with " + PhotonNetwork.CurrentRoom.PlayerCount + " players.");
             PhotonNetwork.CurrentRoom.IsOpen = false;
-
             waitingStatusText.text = "Opponent found";
-            Debug.Log("Mach is ready to begin");
-
-            if (PhotonNetwork.IsMasterClient)
+            double timeOfTimer = minTime;
+            if (StaticData.IsEmptyAt(PhotonNetwork.CurrentRoom.MaxPlayers))
             {
-                double timeOfTimer = minTime; //in seconds
-                if (StaticData.IsEmptyAt(MaxPlayersPerRoom))
-                {
-                    timeOfTimer += 2;
-                }
-                DateTime timeToStart = CalculateStartingTime(timeOfTimer);
-                // calculate the time (take the local seconds, add the timeOfTimer, around it to the highest)
-                Debug.Log("Master - TimeToStart: " + timeToStart.ToString("dd/MM/yyyy HH:mm:ss"));
-
-                // pun rpc everyone else
-                this.photonView.RPC("StartClientTimer", RpcTarget.Others, timeToStart.ToString("dd/MM/yyyy HH:mm:ss"));
-
-                // remaking the table of playerPosition if the maxPlayers is changed
-                if (MaxPlayersPerRoom != defaultMaxPlayers)
-                {
-                    size = calculateMazeSize();
-                    playersPosition = new int[MaxPlayersPerRoom, 2];
-                    playersPosition = GeneratePlayerPositions(playersPosition);
-                }
-                StartCoroutine(StartTimer(timeToStart));
+                timeOfTimer += 2;
             }
+            DateTime timeToStart = CalculateStartingTime(timeOfTimer);
+            this.photonView.RPC("StartClientTimer", RpcTarget.Others, timeToStart.ToString("dd/MM/yyyy HH:mm:ss"));
+            if (PhotonNetwork.CurrentRoom.MaxPlayers != defaultMaxPlayers)
+            {
+                playersPosition = new int[PhotonNetwork.CurrentRoom.MaxPlayers, 2];
+                playersPosition = GeneratePlayerPositions(playersPosition);
+            }
+            StartCoroutine(StartTimer(timeToStart));
         }
     }
 
     public void sendRPCtoClients(){
-        int i = 0; // the index given to the players
+        int i = 0;
         foreach (Player player in PhotonNetwork.PlayerList)
         {
             player.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[i] }, { "Index", i }, { "Point", 0 }, {"Master", player.IsMasterClient} });
-            this.photonView.RPC("ChangePlayerPosition", player, playersPosition[i, 0], playersPosition[i, 1], rotation[i % 4], i);
+            this.photonView.RPC("ChangePlayerPosition", player, playersPosition[i, 0], playersPosition[i, 1], rotation[i % 4]);
             i++;
         }
     }
@@ -496,15 +398,15 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
             if (DateTime.Now > timeToStart)
             {
-                Debug.Log("Master - Actual time: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") + "\nTimeToStart: " + timeToStart.ToString("dd/MM/yyyy HH:mm:ss"));
                 waitingStatusText.text = "Game Start in 0 seconds";
                 break;
             }
-            if ((restantSeconds <= (minTime - 3) || (restantSeconds <= 2)) && PhotonNetwork.IsMasterClient && !rpcSent){ //  && PhotonNetwork.PlayerList[0].CustomProperties["Index"] != null
+            if ((restantSeconds <= (minTime - 3) || (restantSeconds <= 2)) && PhotonNetwork.IsMasterClient && !rpcSent){
                 rpcSent = true;
                 sendRPCtoClients();
             }
         }
+        yield return new WaitUntil(() => (PhotonNetwork.PlayerList[0].CustomProperties["Index"] != null));
         if (PhotonNetwork.IsMasterClient)
         {
             PhotonNetwork.LoadLevel("Game");
@@ -520,15 +422,13 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    public void ChangePlayerPosition(int placeX, int placeY, int rotation, int index){
+    public void ChangePlayerPosition(int placeX, int placeY, int rotation){
         StaticData.position = new Vector3(placeX, 0.5f, placeY);
         StaticData.rotation = rotation;
-        StaticData.trophiesInGame = 2 * (int)PhotonNetwork.CurrentRoom.MaxPlayers + 1; //#// change it to check from a method so I just have to change the method to change it everywhere
-        if (index <= 4){
-	        StaticData.colorName = colorName[index];
-	    }
-	    else {
-	        StaticData.colorName = "W";
-	    }
+        StaticData.trophiesInGame = CalculateTrophies();
+    }
+
+    public int CalculateTrophies(){
+        return 2 * (int)PhotonNetwork.CurrentRoom.MaxPlayers + 1;
     }
 }

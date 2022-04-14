@@ -16,7 +16,7 @@ public class spawning : MonoBehaviourPun
     void Start()
     {
         LeaderboardPanel = Instantiate(LeaderboardPanel, Vector3.zero, Quaternion.identity);
-        GameObject player = PhotonNetwork.Instantiate(string.Concat(playerPrefab.name, StaticData.colorName), StaticData.position, Quaternion.Euler(0, StaticData.rotation, 0));
+        GameObject player = PhotonNetwork.Instantiate(string.Concat(playerPrefab.name, PhotonNetwork.LocalPlayer.CustomProperties["ColorName"]), StaticData.position, Quaternion.Euler(0, StaticData.rotation, 0));
         if (PhotonNetwork.IsMasterClient)
         {
             size = StaticData.mazeSize;
