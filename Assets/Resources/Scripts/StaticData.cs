@@ -11,6 +11,8 @@ public static class StaticData
     public static Vector3 position;
     public static int rotation;
     public static int trophiesInGame;
+    public static string myRoomName = ""; // room name to create
+    public static bool creatingMyRoom = false;
     public static Dictionary<string, int> playerPoints = new Dictionary<string, int>(); // name, points. the first character of the name is the color.
 
     public static List<KeyValuePair<string, int>> Classement(){

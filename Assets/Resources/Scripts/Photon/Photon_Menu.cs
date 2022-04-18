@@ -15,6 +15,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     [SerializeField] private TextMeshProUGUI waitingStatusText = null;
     [SerializeField] GameObject textBoxPrefab;
     [SerializeField] GameObject TextBoxAndField;
+    [SerializeField] GameObject roomName;
     [SerializeField] private GameObject masterPanel = null;
     [SerializeField] private GameObject Canvas = null;
     public GameObject PlayersJoinedTextBox = null;
@@ -23,6 +24,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     private const int defaultMaxPlayers = 2;
     private int[,] playersPosition;
     private readonly double minTime = 4;
+    private bool isInTimer = false;
     private Dictionary<string, Color> colorList = new Dictionary<string, Color>() { { "G", Color.green }, { "R", Color.red }, { "P", new Color(1, 0, 1, 1) }, { "Y", Color.yellow }, { "B", Color.black}, { "W", Color.white} };
     private readonly Tuple<int, int>[] positions = new Tuple<int, int>[4] {
         new Tuple<int, int>(1, 1),
@@ -50,6 +52,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     private void Start()
     {
         StaticData.CleanTable();
+        Canvas.transform.Find("Panel_FindOpponent").transform.Find("InputFieldRoomName").GetComponent<InputField>().text = StaticData.myRoomName;
         if (StaticData.firstTimeMenu)
         {
             StaticData.firstTimeMenu = false;
@@ -68,7 +71,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             findOpponentPanel.SetActive(false);
             Canvas.transform.Find("Image").gameObject.SetActive(false);
             Canvas.transform.Find("Panel_NameInput").gameObject.SetActive(false);
-            Canvas.transform.Find("Panel_Winning").gameObject.SetActive(true);            
+            Canvas.transform.Find("Panel_Winning").gameObject.SetActive(true);   
             List<KeyValuePair<string, int>> list = new List<KeyValuePair<string, int>>(StaticData.Classement());
             for (int i = 0; i < list.Count; i++)
             {
@@ -113,7 +116,12 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         }
     }
 
-    public void CreateNewRoom()
+    private void SetRoomNameText(){
+        roomName.GetComponent<TextMeshProUGUI>().text = "Room Name: " + PhotonNetwork.CurrentRoom.Name;
+        roomName.SetActive(true);
+    }
+
+    public void CreateRoomAlone()
     {
         SceneManager.LoadScene("GameAlone");
     }
@@ -121,16 +129,26 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     public override void OnConnectedToMaster()
     {
         if (isConnecting)
+        {
             PhotonNetwork.JoinRandomRoom();
+        }
+        else if (StaticData.creatingMyRoom){
+            PhotonNetwork.JoinOrCreateRoom(StaticData.myRoomName, new RoomOptions { MaxPlayers = (byte)defaultMaxPlayers }, TypedLobby.Default);
+            StaticData.creatingMyRoom = false;
+        }
     }
 
     public override void OnDisconnected(Photon.Realtime.DisconnectCause cause)
     {
         waitingStatusPanel.SetActive(false);
+        roomName.SetActive(false);
         findOpponentPanel.SetActive(true);
     }
 
     public override void OnPlayerLeftRoom(Player otherPlayer){
+        if (isInTimer){
+            isInTimer = false;
+        }
         if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"] && !Canvas.transform.Find("Panel_Winning").gameObject.active){
             findOpponentPanel.SetActive(false);
             ActivateMasterMode();
@@ -153,14 +171,28 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         CreateMasterBoxes(PhotonNetwork.CurrentRoom.PlayerCount);
     }
 
-    public int calculateMazeSize()
-    {
+    public int calculateMazeSize(){
         return 12 * PhotonNetwork.CurrentRoom.MaxPlayers + 1;
     }
 
     public override void OnJoinRandomFailed(short returnCode, string message)
     {
+        Debug.Log("No clients are waiting for an opponent, creating a new room.");
         PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = (byte)defaultMaxPlayers });
+    }
+
+    public void CreateNewRoom(){
+        waitingStatusPanel.SetActive(true);
+        waitingStatusText.text = "Creating room...";
+        if (!PhotonNetwork.IsConnected)
+        {
+            PhotonNetwork.PhotonServerSettings.AppSettings.AppVersion = GameVersion;
+            PhotonNetwork.ConnectUsingSettings();
+        }
+        else{
+            PhotonNetwork.JoinOrCreateRoom(StaticData.myRoomName, new RoomOptions { MaxPlayers = (byte)defaultMaxPlayers }, TypedLobby.Default);
+        }
+        StaticData.creatingMyRoom = true;
     }
 
     IEnumerator GenerateMaze()
@@ -203,19 +235,14 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     public override void OnJoinedRoom()
     {
-        Debug.Log("Client successfully joined a room");
-
+        Debug.Log("Client successfully joined a room with name: " + PhotonNetwork.CurrentRoom.Name);
+        SetRoomNameText();
         int playerCount = PhotonNetwork.CurrentRoom.PlayerCount;
 
-        if (playerCount != PhotonNetwork.CurrentRoom.MaxPlayers)
-        {
-            waitingStatusText.text = "Waiting for opponents. " + playerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers + " players.";
-        }
-        else
+        if (playerCount == PhotonNetwork.CurrentRoom.MaxPlayers)
         {
             waitingStatusText.text = "Opponent found";
-            Debug.Log("Mach is ready to begin");
-        }
+            Debug.Log("Mach is ready to begin");        }
         if (!PhotonNetwork.IsMasterClient)
         {
             waitingStatusText.text = "Waiting for Players\n" + playerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
@@ -340,7 +367,8 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     public int timeLeft(DateTime fromTime)
     {
-        return fromTime.Second - DateTime.Now.Second;
+        int timeLeft = fromTime.Second - DateTime.Now.Second;
+        return timeLeft < 0 ? timeLeft + 60 : timeLeft;
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
@@ -382,6 +410,8 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     IEnumerator StartTimer(DateTime timeToStart)
     {
+        Debug.Log("Time to start: " + timeToStart + ". So, time left: " + timeLeft(timeToStart));
+        isInTimer = true;
         int restantSeconds = timeLeft(timeToStart);
         int secondsToWait = restantSeconds;
         waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
@@ -396,6 +426,15 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             yield return new WaitUntil(() => (timeLeft(timeToStart) < restantSeconds));
             restantSeconds = timeLeft(timeToStart);
             waitingStatusText.text = "Game Start in " + restantSeconds + " seconds";
+            if (!isInTimer){
+                if (PhotonNetwork.IsMasterClient){
+                    waitingStatusText.text = "";
+                }
+                else{
+                    waitingStatusText.text = "Waiting for Players\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
+                }
+                break;
+            }
             if (DateTime.Now > timeToStart)
             {
                 waitingStatusText.text = "Game Start in 0 seconds";
