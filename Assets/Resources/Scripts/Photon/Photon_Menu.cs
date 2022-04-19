@@ -42,7 +42,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
 
     void Update()
     {
-        if (Canvas.transform.Find("Panel_Winning").gameObject.active && Cursor.visible == false)
+        if (Canvas.transform.Find("Panel_Winning").gameObject.activeInHierarchy && Cursor.visible == false)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -133,7 +133,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         {
             PhotonNetwork.JoinRandomRoom();
         }
-        else if (StaticData.creatingMyRoom){
+        else if (StaticData.creatingMyRoom && findOpponentPanel.activeInHierarchy){
             PhotonNetwork.JoinOrCreateRoom(StaticData.myRoomName, new RoomOptions { MaxPlayers = (byte)defaultMaxPlayers }, TypedLobby.Default);
             StaticData.creatingMyRoom = false;
         }
@@ -146,15 +146,24 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         findOpponentPanel.SetActive(true);
     }
 
+    IEnumerator Alert(string textToDisplay, int secondsToWait){
+        Canvas.transform.Find("TextAlert").gameObject.SetActive(true);
+        Canvas.transform.Find("TextAlert").gameObject.GetComponent<TextMeshProUGUI>().text = textToDisplay;
+        yield return new WaitForSeconds(secondsToWait);
+        Canvas.transform.Find("TextAlert").gameObject.SetActive(false);
+    }
+
     public override void OnPlayerLeftRoom(Player otherPlayer){
         if (isInTimer){
             isInTimer = false;
+            StartCoroutine(Alert("Player " + otherPlayer.NickName + " left the room.", 2));
         }
-        if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"] && !Canvas.transform.Find("Panel_Winning").gameObject.active){
+        if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"] && !Canvas.transform.Find("Panel_Winning").gameObject.activeInHierarchy){
             findOpponentPanel.SetActive(false);
             ActivateMasterMode();
+            ActivateLockedLock(Canvas.transform.Find("masterPanel").transform.Find("RoomInformations").transform.Find("Lock_Parent").transform.Find("Lock").transform, !PhotonNetwork.CurrentRoom.IsVisible);
         }
-        else if(PhotonNetwork.IsMasterClient && Canvas.transform.Find("masterPanel").gameObject.active){
+        else if(PhotonNetwork.IsMasterClient && Canvas.transform.Find("masterPanel").gameObject.activeInHierarchy){
             PlayersJoinedTextBox.GetComponent<Text>().text = "Players that already joined: " + PhotonNetwork.CurrentRoom.PlayerCount.ToString();
         }
         else if (!PhotonNetwork.IsMasterClient){ 
@@ -163,9 +172,6 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     }
 
     public void ActivateMasterMode(){
-        if (Canvas.transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").transform.Find("Lock").transform.Find("Locked_Lock").gameObject.activeInHierarchy){
-            PhotonNetwork.CurrentRoom.IsVisible = false;
-        }
         masterPanel.SetActive(true);
         waitingStatusPanel.SetActive(false);
         findOpponentPanel.SetActive(false);
@@ -276,6 +282,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         }
         else
         {
+            if (Canvas.transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").transform.Find("Lock").transform.Find("Locked_Lock").gameObject.activeInHierarchy){
+                PhotonNetwork.CurrentRoom.IsVisible = false;
+            }
             ActivateMasterMode();
         }
     }
@@ -307,8 +316,8 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     }
 
     public void CreateMasterBoxes(int playerCount){
-        addTextBox("Max Players", PhotonNetwork.CurrentRoom.MaxPlayers.ToString(), 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false); // GameObject maxPlayersTextBox = 
-        addTextBox("Number of trophies", Static_Methods.CalculateTrophies((int)PhotonNetwork.CurrentRoom.MaxPlayers).ToString(), 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false); // GameObject trophiesTextBox = 
+        addTextBox("Max Players", PhotonNetwork.CurrentRoom.MaxPlayers.ToString(), 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+        addTextBox("Number of trophies", Static_Methods.CalculateTrophies((int)PhotonNetwork.CurrentRoom.MaxPlayers).ToString(), 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
         PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount.ToString(), 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
         CreateLockInMaster(3);
     }
@@ -374,7 +383,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 PhotonNetwork.CurrentRoom.MaxPlayers = (byte)playersInInput;
                 masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + Static_Methods.CalculateTrophies((int)PhotonNetwork.CurrentRoom.MaxPlayers).ToString();
                 masterPanel.transform.Find("RoomInformations").Find("Max Players").Find("TextBox").GetComponent<Text>().text = "Max Players: " + playersInInput;
-                
+                this.photonView.RPC("UpdateMaxPlayers", RpcTarget.Others);
                 playersPosition = new int[playersInInput, 2];
                 playersPosition = GeneratePlayerPositions(playersPosition);
                 
@@ -519,5 +528,12 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         StaticData.position = new Vector3(placeX, 0.5f, placeY);
         StaticData.rotation = rotation;
         StaticData.trophiesInGame = trophies;
+    }
+
+    [PunRPC]
+    public void UpdateMaxPlayers(){
+        if (!PhotonNetwork.IsMasterClient){
+            waitingStatusText.text = "Waiting for Players\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers.ToString();
+        }
     }
 }

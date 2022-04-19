@@ -33,7 +33,7 @@ public class Photon_Name : MonoBehaviourPunCallbacks
 
     public void SaveName()
     {
-        if (GameObject.Find("Canvas_Menu").transform.Find("Panel_NameInput").gameObject.active){
+        if (GameObject.Find("Canvas_Menu").transform.Find("Panel_NameInput").gameObject.activeInHierarchy){
             Name = nameInputField.text;
             PhotonNetwork.NickName = Name;
             PlayerPrefs.SetString(PlayerPrefsNameKey, Name);
