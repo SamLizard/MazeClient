@@ -25,6 +25,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     private int[,] playersPosition;
     private readonly double minTime = 4;
     private bool isInTimer = false;
+    [SerializeField] private GameObject lockPrefab;
     private Dictionary<string, Color> colorList = new Dictionary<string, Color>() { { "G", Color.green }, { "R", Color.red }, { "P", new Color(1, 0, 1, 1) }, { "Y", Color.yellow }, { "B", Color.black}, { "W", Color.white} };
     private readonly Tuple<int, int>[] positions = new Tuple<int, int>[4] {
         new Tuple<int, int>(1, 1),
@@ -75,7 +76,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             List<KeyValuePair<string, int>> list = new List<KeyValuePair<string, int>>(StaticData.Classement());
             for (int i = 0; i < list.Count; i++)
             {
-                addTextBox(list[i].Key.Substring(2), list[i].Value, i, false, colorList[list[i].Key[0].ToString()], "Finnish_Background", Canvas.transform.Find("Panel_Winning").gameObject, true);
+                addTextBox(list[i].Key.Substring(2), list[i].Value.ToString(), i, false, colorList[list[i].Key[0].ToString()], "Finnish_Background", Canvas.transform.Find("Panel_Winning").gameObject, true);
             }
             if ((int)PhotonNetwork.LocalPlayer.CustomProperties["Point"] == (int)list[0].Value) 
             {
@@ -162,8 +163,12 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     }
 
     public void ActivateMasterMode(){
+        if (Canvas.transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").transform.Find("Lock").transform.Find("Locked_Lock").gameObject.activeInHierarchy){
+            PhotonNetwork.CurrentRoom.IsVisible = false;
+        }
         masterPanel.SetActive(true);
         waitingStatusPanel.SetActive(false);
+        findOpponentPanel.SetActive(false);
         PhotonNetwork.LocalPlayer.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { {"Master", true} });
         StartCoroutine(GenerateMaze());
         playersPosition = new int[PhotonNetwork.CurrentRoom.MaxPlayers, 2];
@@ -193,6 +198,28 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             PhotonNetwork.JoinOrCreateRoom(StaticData.myRoomName, new RoomOptions { MaxPlayers = (byte)defaultMaxPlayers }, TypedLobby.Default);
         }
         StaticData.creatingMyRoom = true;
+    }
+
+    public void ChangeLock(){
+        Transform Lock;
+        if(masterPanel.activeInHierarchy){
+            Lock = Canvas.transform.Find("masterPanel").transform.Find("RoomInformations").transform.Find("Lock_Parent").transform.Find("Lock").transform;
+            PhotonNetwork.CurrentRoom.IsVisible = !PhotonNetwork.CurrentRoom.IsVisible;
+        }
+        else{
+            Lock = Canvas.transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").transform.Find("Lock").transform;
+        }
+        if (Lock.Find("Locked_Lock").gameObject.activeInHierarchy){
+            ActivateLockedLock(Lock, false);
+        }
+        else{
+            ActivateLockedLock(Lock, true);
+        }
+    }
+
+    public void ActivateLockedLock(Transform Lock, bool activateIt){
+        Lock.Find("Locked_Lock").gameObject.SetActive(activateIt);
+        Lock.Find("Unlocked_Lock").gameObject.SetActive(!activateIt);
     }
 
     IEnumerator GenerateMaze()
@@ -253,13 +280,40 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         }
     }
 
-    public void CreateMasterBoxes(int playerCount){
-        GameObject maxPlayersTextBox = addTextBox("Max Players", PhotonNetwork.CurrentRoom.MaxPlayers, 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
-        GameObject trophiesTextBox = addTextBox("Number of trophies", CalculateTrophies(), 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
-        PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount, 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+    private void CreateLockInMaster(int index){
+        GameObject Lock_Parent = Instantiate(new GameObject("Lock_Parent"), masterPanel.transform.Find("RoomInformations").transform);
+        Lock_Parent.AddComponent<RectTransform>();
+        PlaceBox(Lock_Parent, index, "Lock_Parent");
+        GameObject LockText = addTextBox("Is room visible", "", 0, false, new Color(0, 0, 0.5f), "Lock_Parent", masterPanel.transform.Find("RoomInformations").gameObject, false);
+        LockText.transform.SetParent(Lock_Parent.transform);
+        SetObjectPosition(LockText, 0, 0.65f);
+        GameObject Lock = Instantiate(lockPrefab, Lock_Parent.transform);
+        Lock.name = "Lock";
+        Lock.transform.localPosition = new Vector3(0, 0, 0);
+        SetObjectPosition(Lock, 0.66f, 1);
+        Lock.GetComponent<Button>().onClick.AddListener(delegate { ChangeLock(); });
+        if (PhotonNetwork.CurrentRoom.IsVisible){
+            ActivateLockedLock(Lock.transform, false);
+            return;
+        }
+        ActivateLockedLock(Lock.transform, true);
     }
 
-    public GameObject addTextBox(string textToDisplay, int variableToShow, int index, bool allowInput, Color color, string parent, GameObject panel, bool enableOutline)
+    private void SetObjectPosition(GameObject Object, float minX, float maxX){
+        Object.GetComponent<RectTransform>().anchorMin = new Vector2(minX, 0);
+        Object.GetComponent<RectTransform>().anchorMax = new Vector2(maxX, 1);
+        Object.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 0);
+        Object.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 0);
+    }
+
+    public void CreateMasterBoxes(int playerCount){
+        addTextBox("Max Players", PhotonNetwork.CurrentRoom.MaxPlayers.ToString(), 0, true, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false); // GameObject maxPlayersTextBox = 
+        addTextBox("Number of trophies", Static_Methods.CalculateTrophies((int)PhotonNetwork.CurrentRoom.MaxPlayers).ToString(), 1, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false); // GameObject trophiesTextBox = 
+        PlayersJoinedTextBox = addTextBox("Players that alredy joined", playerCount.ToString(), 2, false, new Color(0, 0, 0.5f), "RoomInformations", masterPanel, false);
+        CreateLockInMaster(3);
+    }
+
+    public GameObject addTextBox(string textToDisplay, string variableToShow, int index, bool allowInput, Color color, string parent, GameObject panel, bool enableOutline)
     {
         enableOutline = enableOutline && color != Color.black;
         if (allowInput){
@@ -273,7 +327,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         return textBox;
     }
 
-    public GameObject AddTextBoxAndInput(string textToDisplay, int variableToShow, int index, Color color, string parentStr, GameObject panel, bool enableOutline){
+    public GameObject AddTextBoxAndInput(string textToDisplay, string variableToShow, int index, Color color, string parentStr, GameObject panel, bool enableOutline){
         GameObject parent = Instantiate(TextBoxAndField, Vector3.zero, Quaternion.identity);
         parent.transform.SetParent(panel.transform.Find(parentStr));
         
@@ -284,7 +338,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         TextBoxParameters(textBox, textToDisplay, variableToShow, color, enableOutline);
         
         inputField.transform.Find("Text").GetComponent<Text>().color = color;
-        inputField.GetComponent<InputField>().text = variableToShow.ToString();
+        inputField.GetComponent<InputField>().text = variableToShow;
         // activate the inputfield on value changed, chose the function oninputChanged that is in the script Photon_Menu in the Canvas_Menu in scene
         inputField.GetComponent<InputField>().onValueChanged.AddListener(delegate { onInputChanged(); });
         return parent;
@@ -299,7 +353,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         Box.name = textToDisplay;
     }
 
-    public void TextBoxParameters(GameObject Box, string textToDisplay, int variableToShow, Color color, bool enableOutline){
+    public void TextBoxParameters(GameObject Box, string textToDisplay, string variableToShow, Color color, bool enableOutline){
         Box.GetComponent<Text>().text = textToDisplay + ": " + variableToShow;
         Box.GetComponent<Text>().color = color;
         Box.GetComponent<Outline>().enabled = enableOutline;
@@ -318,7 +372,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
             int playerCount = PhotonNetwork.CurrentRoom.PlayerCount;
             if (playersInInput >= playerCount && playersInInput <= 5 && playersInInput >= 2) {
                 PhotonNetwork.CurrentRoom.MaxPlayers = (byte)playersInInput;
-                masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + CalculateTrophies().ToString();
+                masterPanel.transform.Find("RoomInformations").Find("Number of trophies").GetComponent<Text>().text = "Number of trophies: " + Static_Methods.CalculateTrophies((int)PhotonNetwork.CurrentRoom.MaxPlayers).ToString();
                 masterPanel.transform.Find("RoomInformations").Find("Max Players").Find("TextBox").GetComponent<Text>().text = "Max Players: " + playersInInput;
                 
                 playersPosition = new int[playersInInput, 2];
@@ -403,7 +457,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         foreach (Player player in PhotonNetwork.PlayerList)
         {
             player.SetCustomProperties(new ExitGames.Client.Photon.Hashtable() { { "ColorName", colorName[i] }, { "Index", i }, { "Point", 0 }, {"Master", player.IsMasterClient} });
-            this.photonView.RPC("ChangePlayerPosition", player, playersPosition[i, 0], playersPosition[i, 1], rotation[i % 4]);
+            this.photonView.RPC("ChangePlayerPosition", player, playersPosition[i, 0], playersPosition[i, 1], rotation[i % 4], Static_Methods.CalculateTrophies((int)PhotonNetwork.CurrentRoom.MaxPlayers));
             i++;
         }
     }
@@ -433,7 +487,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
                 else{
                     waitingStatusText.text = "Waiting for Players\n" + PhotonNetwork.CurrentRoom.PlayerCount + " / " + PhotonNetwork.CurrentRoom.MaxPlayers;
                 }
-                break;
+                yield break;
             }
             if (DateTime.Now > timeToStart)
             {
@@ -461,13 +515,9 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    public void ChangePlayerPosition(int placeX, int placeY, int rotation){
+    public void ChangePlayerPosition(int placeX, int placeY, int rotation, int trophies){
         StaticData.position = new Vector3(placeX, 0.5f, placeY);
         StaticData.rotation = rotation;
-        StaticData.trophiesInGame = CalculateTrophies();
-    }
-
-    public int CalculateTrophies(){
-        return 2 * (int)PhotonNetwork.CurrentRoom.MaxPlayers + 1;
+        StaticData.trophiesInGame = trophies;
     }
 }

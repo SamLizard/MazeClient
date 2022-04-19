@@ -23,7 +23,7 @@ public class spawning : MonoBehaviourPun
             string tableString = StaticData.table[(int)PhotonNetwork.CurrentRoom.MaxPlayers - 2];
             int[,] tableData = Static_Methods.stringToTable(tableString, size);
             this.photonView.RPC("InstantiateMazeInScene", RpcTarget.All, tableString, size);
-            InstansiateTrophies(2 * (int)PhotonNetwork.CurrentRoom.MaxPlayers + 1, tableData, "Trophy");
+            InstansiateTrophies(Static_Methods.CalculateTrophies((int)PhotonNetwork.CurrentRoom.MaxPlayers), tableData, "Trophy");
         }
     }
 

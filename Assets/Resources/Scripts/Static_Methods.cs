@@ -133,10 +133,10 @@ public static class Static_Methods
         {
             prefab_place = 4;
         }
-        InstantiateMaze(row, column, rotation, prefab_place, size);
+        InstantiateMazeObjects(row, column, rotation, prefab_place, size);
     }
 
-    public static void InstantiateMaze(int row, int column, int rotation, int prefab_place, int size)
+    public static void InstantiateMazeObjects(int row, int column, int rotation, int prefab_place, int size)
     {
         int initial_place = ((-size / 2) * square_size) + (square_size / 2) - ((square_size / 2) * (size % 2));
         int place_x = initial_place + row * square_size;  // vertical = x
@@ -379,4 +379,8 @@ public static class Static_Methods
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static int CalculateTrophies(int maxPlayersInRoom){
+        return 2 * maxPlayersInRoom + 1;
+    }
 }
