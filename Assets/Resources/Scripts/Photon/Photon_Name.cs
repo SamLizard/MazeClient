@@ -22,13 +22,13 @@ public class Photon_Name : MonoBehaviourPunCallbacks
         if (!PlayerPrefs.HasKey(PlayerPrefsNameKey)) { return; }
         string defaultName = PlayerPrefs.GetString(PlayerPrefsNameKey);
         nameInputField.text = defaultName;
-        SetPlayerName(defaultName);
-        GameObject.Find("Canvas_Menu").transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").GetComponent<Button>().interactable = IsNameValid(StaticData.myRoomName);
+        SetButtonInteractibility(continueButton, defaultName);
+        SetButtonInteractibility(GameObject.Find("Canvas_Menu").transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").GetComponent<Button>(), StaticData.myRoomName);
     }
 
-    public void SetPlayerName(string name)
+    public void SetButtonInteractibility(Button buttonToChange, string name)
     {
-        continueButton.interactable = !string.IsNullOrEmpty(name);
+        buttonToChange.interactable = !string.IsNullOrEmpty(name);
     }
 
     public void SaveName()
@@ -37,16 +37,11 @@ public class Photon_Name : MonoBehaviourPunCallbacks
             Name = nameInputField.text;
             PhotonNetwork.NickName = Name;
             PlayerPrefs.SetString(PlayerPrefsNameKey, Name);
-            continueButton.interactable = !string.IsNullOrEmpty(Name);
+            SetButtonInteractibility(continueButton, Name);
         }
         else{
             StaticData.myRoomName = roomNameInputField.text;
-            GameObject.Find("Canvas_Menu").transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").GetComponent<Button>().interactable = IsNameValid(StaticData.myRoomName);
+            SetButtonInteractibility(GameObject.Find("Canvas_Menu").transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").GetComponent<Button>(), StaticData.myRoomName);
         }
-    }
-
-    public bool IsNameValid(string Name)
-    {
-        return !string.IsNullOrEmpty(Name);
     }
 }

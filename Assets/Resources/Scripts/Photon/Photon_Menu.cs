@@ -53,14 +53,14 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     private void Start()
     {
         StaticData.CleanTable();
-        Canvas.transform.Find("Panel_FindOpponent").transform.Find("InputFieldRoomName").GetComponent<InputField>().text = StaticData.myRoomName;
+        findOpponentPanel.transform.Find("InputFieldRoomName").GetComponent<InputField>().text = StaticData.myRoomName;
         if (StaticData.firstTimeMenu)
         {
             StaticData.firstTimeMenu = false;
             if (StaticData.commingFromAloneMode)
             {
                 Canvas.transform.Find("Panel_NameInput").gameObject.SetActive(false);
-                Canvas.transform.Find("Panel_FindOpponent").gameObject.SetActive(true);
+                findOpponentPanel.SetActive(true);
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
             }
@@ -157,13 +157,14 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         if (isInTimer){
             isInTimer = false;
             StartCoroutine(Alert("Player " + otherPlayer.NickName + " left the room.", 2));
+            PhotonNetwork.CurrentRoom.IsOpen = true;
         }
         if (PhotonNetwork.IsMasterClient && otherPlayer.CustomProperties["Master"] != null && (bool)otherPlayer.CustomProperties["Master"] && !Canvas.transform.Find("Panel_Winning").gameObject.activeInHierarchy){
             findOpponentPanel.SetActive(false);
             ActivateMasterMode();
-            ActivateLockedLock(Canvas.transform.Find("masterPanel").transform.Find("RoomInformations").transform.Find("Lock_Parent").transform.Find("Lock").transform, !PhotonNetwork.CurrentRoom.IsVisible);
+            ActivateLockedLock(masterPanel.transform.Find("RoomInformations").transform.Find("Lock_Parent").transform.Find("Lock").transform, !PhotonNetwork.CurrentRoom.IsVisible);
         }
-        else if(PhotonNetwork.IsMasterClient && Canvas.transform.Find("masterPanel").gameObject.activeInHierarchy){
+        else if(PhotonNetwork.IsMasterClient && masterPanel.activeInHierarchy){
             PlayersJoinedTextBox.GetComponent<Text>().text = "Players that already joined: " + PhotonNetwork.CurrentRoom.PlayerCount.ToString();
         }
         else if (!PhotonNetwork.IsMasterClient){ 
@@ -209,11 +210,11 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
     public void ChangeLock(){
         Transform Lock;
         if(masterPanel.activeInHierarchy){
-            Lock = Canvas.transform.Find("masterPanel").transform.Find("RoomInformations").transform.Find("Lock_Parent").transform.Find("Lock").transform;
+            Lock = masterPanel.transform.Find("RoomInformations").transform.Find("Lock_Parent").transform.Find("Lock").transform;
             PhotonNetwork.CurrentRoom.IsVisible = !PhotonNetwork.CurrentRoom.IsVisible;
         }
         else{
-            Lock = Canvas.transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").transform.Find("Lock").transform;
+            Lock = findOpponentPanel.transform.Find("Button_CreateNewRoom").transform.Find("Lock").transform;
         }
         if (Lock.Find("Locked_Lock").gameObject.activeInHierarchy){
             ActivateLockedLock(Lock, false);
@@ -282,7 +283,7 @@ public class Photon_Menu : MonoBehaviourPunCallbacks
         }
         else
         {
-            if (Canvas.transform.Find("Panel_FindOpponent").transform.Find("Button_CreateNewRoom").transform.Find("Lock").transform.Find("Locked_Lock").gameObject.activeInHierarchy){
+            if (findOpponentPanel.transform.Find("Button_CreateNewRoom").transform.Find("Lock").transform.Find("Locked_Lock").gameObject.activeInHierarchy){
                 PhotonNetwork.CurrentRoom.IsVisible = false;
             }
             ActivateMasterMode();

@@ -27,7 +27,6 @@ public static class Static_Methods
         new int[4] {3, 0, 2, 1 }, new int[4] {3, 0, 1, 2 }, new int[4] {3, 1, 2, 0 }, new int[4] {3, 1, 0, 2 }, new int[4] {3, 2, 1, 0 }, new int[4] {3, 2, 0, 1 },
     };
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     public static void InstantiateMaze(int[,] table)
     {
         for (int row = 0; row < table.GetLength(0); row++)
@@ -156,11 +155,11 @@ public static class Static_Methods
             || column < 0;
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public static int[,] CreateMazeList(int tableSize)
     {
         size = tableSize;
-        int[,] table = InitialBoard(size); // integrate this in the Point class
+        int[,] table = InitialBoard(size);
         Point[,] tablePoint = BuildListOfPoint(size);
         int length = tablePoint.GetLength(0);
         int PointRow = UnityEngine.Random.Range(0, length);
@@ -178,7 +177,7 @@ public static class Static_Methods
                 PointColumn = UnityEngine.Random.Range(0, length);
                 if (tablePoint[PointRow, PointColumn].hasRemainingConnections())
                 {
-                    actualDirection = ChoosePointDirection(tablePoint[PointRow, PointColumn].getDirections(), tablePoint, PointRow, PointColumn);
+                    actualDirection = ChoosePointDirection(tablePoint, PointRow, PointColumn);
                 }
             }
             UpdatePointTable(tablePoint, actualDirection, PointRow, PointColumn);
@@ -204,10 +203,8 @@ public static class Static_Methods
     {
         row *= 2;
         column *= 2;
-        table[row, column] = 1;
         (int x, int y) = directions[actualDirection];
         table[row + x, column + y] = 1;
-        table[row + 2 * x, column + 2 * y] = 1;
         return table;
     }
 
@@ -234,7 +231,7 @@ public static class Static_Methods
             {
                 if (!tablePoint[row, column].getConnection())
                 {
-                    int actualDirection = ChoosePointDirection(tablePoint[row, column].getDirections(), tablePoint, row, column);
+                    int actualDirection = ChoosePointDirection(tablePoint, row, column);
                     UpdatePointTable(tablePoint, actualDirection, row, column);
                     table = UpdateTable(table, actualDirection, row, column);
                 }
@@ -243,7 +240,7 @@ public static class Static_Methods
         return table;
     }
 
-    public static int ChoosePointDirection(bool[] pointDirections, Point[,] tablePoint, int row, int column)
+    public static int ChoosePointDirection(Point[,] tablePoint, int row, int column)
     {
         int directionIndex = UnityEngine.Random.Range(0, 23);
         foreach (int direction in RandomDirections[directionIndex])
@@ -260,23 +257,21 @@ public static class Static_Methods
     public static void UpdatePointCompartiment(Point actualPoint, Point pointedPoint, Point[,] tablePoint)
     {
         int biggestCompartimentValue = Math.Max(actualPoint.getCompartiment().getValue(), pointedPoint.getCompartiment().getValue());
+        if (!actualPoint.getConnection() && !pointedPoint.getConnection())
+        {
+            actualPoint.setCompartiment(pointedPoint.getCompartiment());
+            pointedPoint.getCompartiment().addCount(1);
+            return;
+        }
         if (actualPoint.getCompartiment().getValue() == biggestCompartimentValue)
         {
             Point actualPointToTransfer = actualPoint;
             actualPoint = pointedPoint;
             pointedPoint = actualPointToTransfer;
         }
-        if (!actualPoint.getConnection() && !pointedPoint.getConnection())
-        {
-            actualPoint.setCompartiment(pointedPoint.getCompartiment());
-            pointedPoint.getCompartiment().addCount(1);
-        }
-        else
-        {
-            Compartiment actualPointLastCompartiment = ConnectToLastCompartimentOf(actualPoint.getCompartiment(), 0);
-            Compartiment pointedPointLastCompartiment = ConnectToLastCompartimentOf(pointedPoint.getCompartiment(), 0);
-            ConnectCompartiments(actualPointLastCompartiment, pointedPointLastCompartiment);
-        }
+        Compartiment actualPointLastCompartiment = ConnectToLastCompartimentOf(actualPoint.getCompartiment(), 0);
+        Compartiment pointedPointLastCompartiment = ConnectToLastCompartimentOf(pointedPoint.getCompartiment(), 0);
+        ConnectCompartiments(actualPointLastCompartiment, pointedPointLastCompartiment);
     }
 
     public static void UpdatePointTable(Point[,] tablePoint, int actualDirection, int row, int column)
@@ -325,7 +320,7 @@ public static class Static_Methods
         }
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public static void InstansiateTrophies(int numOfThrophies, int[,] table, GameObject Trophy)
     {
         int tablePointSize = (table.GetLength(0) - 1) / 2;
@@ -350,7 +345,7 @@ public static class Static_Methods
         }
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public static int[,] stringToTable(string tableString, int tableSize)
     {
         size = tableSize;
@@ -378,7 +373,6 @@ public static class Static_Methods
         return tableString;
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static int CalculateTrophies(int maxPlayersInRoom){
         return 2 * maxPlayersInRoom + 1;

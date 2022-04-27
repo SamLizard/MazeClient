@@ -37,11 +37,6 @@ public class Point
         this.remainingDirections--;
     }
 
-    public bool[] getDirections()
-    {
-        return this.directions;
-    }
-
     public Compartiment getCompartiment()
     {
         return this.compartiment;
